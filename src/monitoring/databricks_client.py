@@ -101,6 +101,9 @@ class DatabricksClient:
         if not host or not token:
             raise ValueError("DATABRICKS_HOST and DATABRICKS_TOKEN must be set "
                              "(fill .env, then: set -a; source .env; set +a)")
+        parsed = urlparse(host.strip())
+        if parsed.scheme in ("https", "http") and parsed.netloc:
+            host = f"{parsed.scheme}://{parsed.netloc}"
         return cls(host, token, **kwargs)
 
     # --- public, read-only operations -----------------------------------------------------

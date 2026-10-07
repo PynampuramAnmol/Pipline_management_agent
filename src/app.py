@@ -11,11 +11,29 @@ from src.monitoring.collector import load_mock_runs
 from src.monitoring.formatting import fmt_run, fmt_time, run_detail_lines
 from src.monitoring.models import RunRecord
 
+import os
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATA = ROOT / "data" / "mock_runs.json"
 DOC_DIR = ROOT / "data" / "diagnostic_documents"
 DEMO_DIR = ROOT / "data" / "conflict_demo"
 CACHE_PATH = ROOT / "data" / "cache" / "embeddings.npz"
+
+
+def _load_dotenv() -> None:
+    env_file = ROOT / ".env"
+    if env_file.is_file():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            k, v = k.strip(), v.strip()
+            if k and k not in os.environ:
+                os.environ[k] = v
+
+
+_load_dotenv()
 
 
 def print_runs(runs: Sequence[RunRecord], empty_message: str) -> None:
@@ -32,14 +50,16 @@ def print_run_detail(r: RunRecord) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="python3 -m src.app")
+    p.add_argument("--dashboard", action="store_true", help="launch the Streamlit web dashboard")
     p.add_argument("--source", choices=["mock", "live"], default="mock",
                    help="mock sample data (default) or the saved live snapshot")
     p.add_argument("--data", type=Path, default=None, help="mock runs JSON file (mock source only)")
     p.add_argument("--snapshot", type=Path, default=None,
                    help="live snapshot file (default data/live/runs_snapshot.json)")
     p.add_argument("--now", help="ISO time with timezone; default is the current time")
-    sub = p.add_subparsers(dest="command", required=True)
+    sub = p.add_subparsers(dest="command", required=False)
 
+    sub.add_parser("dashboard", help="launch the Streamlit web dashboard")
     sub.add_parser("summary", help="counts per result state")
 
     s = sub.add_parser("latest", help="most recent run")
@@ -167,6 +187,15 @@ def _run_collect(args) -> int:
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = build_parser().parse_args(argv)
+
+    if getattr(args, "dashboard", False) or args.command == "dashboard":
+        import subprocess
+        dashboard_path = ROOT / "src" / "dashboard.py"
+        return subprocess.run([sys.executable, "-m", "streamlit", "run", str(dashboard_path)]).returncode
+
+    if not args.command:
+        build_parser().print_help()
+        return 2
 
     try:
         now = datetime.fromisoformat(args.now) if args.now else datetime.now(timezone.utc)

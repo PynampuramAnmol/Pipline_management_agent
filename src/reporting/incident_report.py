@@ -35,6 +35,7 @@ def build_incident_report(
     now: Optional[datetime] = None,
     data_note: Optional[str] = None,
     top_k: int = 5,
+    min_score: Optional[float] = None,
 ) -> IncidentReport:
     """Builds an incident report for a run with deterministic facts and optional unverified LLM hypotheses."""
     current_time = now or datetime.now(timezone.utc)
@@ -160,7 +161,7 @@ def build_incident_report(
     ctx: Optional[RunContext] = None
     if pipeline is not None:
         query_text = f"Why did run {target_run.run_id} fail?"
-        ctx = retrieve_for_question(pipeline, query_text, all_runs, top_k=top_k, docs=docs)
+        ctx = retrieve_for_question(pipeline, query_text, all_runs, top_k=top_k, docs=docs, min_score=min_score)
         linked = ctx.report.run_evidence.get(target_run.run_id, [])
         related = ctx.report.related.results
 
@@ -255,8 +256,9 @@ def build_incident_report(
             "> They are hypotheses to guide investigation, NOT confirmed causes. The facts above are authoritative.\n"
         )
         if ctx is not None:
+            retrieved_chunks = list(ctx.report.run_evidence.get(target_run.run_id, [])) + list(ctx.report.related.results)
             try:
-                llm_response = generate_answer(ctx, llm)
+                llm_response = generate_answer(ctx, llm, fallback_direct_error=True)
                 if llm_response.llm_used and llm_response.model_text:
                     llm_used = True
                     lines.append(llm_response.model_text.strip())
@@ -265,10 +267,16 @@ def build_incident_report(
                         for w in llm_response.warnings:
                             lines.append(f"- WARNING: {w}")
                 else:
-                    lines.append(
-                        "No explanation generated: verified facts alone or available evidence "
-                        "were insufficient to establish an explanation."
-                    )
+                    if not retrieved_chunks and not target_run.error_message:
+                        lines.append(
+                            "No diagnostic documents met the similarity threshold, "
+                            "and no detailed error message was provided in telemetry."
+                        )
+                    else:
+                        lines.append(
+                            "No explanation generated: verified facts alone or available evidence "
+                            "were insufficient to establish an explanation."
+                        )
             except Exception as exc:
                 lines.append(f"Language model generation failed: {exc}")
         else:
