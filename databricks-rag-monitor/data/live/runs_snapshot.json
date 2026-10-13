@@ -1,0 +1,418 @@
+{
+  "version": 1,
+  "fetched_at": "2026-10-12T18:37:21.343187+00:00",
+  "truncated": false,
+  "fetch_warnings": [],
+  "runs": [
+    {
+      "job_id": 568297559042585,
+      "run_id": 497490806477901,
+      "number_in_job": 497490806477901,
+      "original_attempt_run_id": 497490806477901,
+      "state": {
+        "life_cycle_state": "TERMINATED",
+        "result_state": "SUCCESS",
+        "state_message": "",
+        "user_cancelled_or_timedout": false
+      },
+      "start_time": 1791439133663,
+      "setup_duration": 3000,
+      "execution_duration": 12000,
+      "cleanup_duration": 0,
+      "end_time": 1791439150103,
+      "run_duration": 16440,
+      "trigger": "ONE_TIME",
+      "run_name": "JOB-SUCCESS",
+      "run_page_url": "https://dbc-b0680871-a284.cloud.databricks.com/?o=2698439894674083#job/568297559042585/run/497490806477901",
+      "run_type": "JOB_RUN",
+      "tasks": [
+        {
+          "run_id": 732682815682599,
+          "task_key": "task_success",
+          "run_if": "ALL_SUCCESS",
+          "notebook_task": {
+            "notebook_path": "/Workspace/Users/anmolpynampuram@gmail.com/JOB_SUCCESS",
+            "source": "WORKSPACE"
+          },
+          "state": {
+            "life_cycle_state": "TERMINATED",
+            "result_state": "SUCCESS",
+            "state_message": "",
+            "user_cancelled_or_timedout": false
+          },
+          "run_page_url": "https://dbc-b0680871-a284.cloud.databricks.com/?o=2698439894674083#job/568297559042585/run/732682815682599",
+          "start_time": 1791439133692,
+          "setup_duration": 3000,
+          "execution_duration": 12000,
+          "cleanup_duration": 0,
+          "end_time": 1791439149655,
+          "attempt_number": 0,
+          "status": {
+            "state": "TERMINATED",
+            "termination_details": {
+              "code": "SUCCESS",
+              "type": "SUCCESS",
+              "message": ""
+            }
+          },
+          "effective_performance_target": "PERFORMANCE_OPTIMIZED"
+        }
+      ],
+      "format": "MULTI_TASK",
+      "status": {
+        "state": "TERMINATED",
+        "termination_details": {
+          "code": "SUCCESS",
+          "type": "SUCCESS",
+          "message": ""
+        }
+      },
+      "job_run_id": 497490806477901,
+      "effective_performance_target": "PERFORMANCE_OPTIMIZED"
+    },
+    {
+      "job_id": 196598260835891,
+      "run_id": 611121357504683,
+      "number_in_job": 611121357504683,
+      "original_attempt_run_id": 611121357504683,
+      "state": {
+        "life_cycle_state": "INTERNAL_ERROR",
+        "result_state": "FAILED",
+        "state_message": "Task Task_fail_2 failed with message: Workload failed, see run output for details.",
+        "user_cancelled_or_timedout": false
+      },
+      "start_time": 1791364993783,
+      "setup_duration": 0,
+      "execution_duration": 0,
+      "cleanup_duration": 0,
+      "end_time": 1791365047822,
+      "run_duration": 54039,
+      "trigger": "ONE_TIME",
+      "run_name": "job_fail_2",
+      "run_page_url": "https://dbc-b0680871-a284.cloud.databricks.com/?o=2698439894674083#job/196598260835891/run/611121357504683",
+      "run_type": "JOB_RUN",
+      "tasks": [
+        {
+          "run_id": 271294422615211,
+          "task_key": "Task_fail_2",
+          "run_if": "ALL_SUCCESS",
+          "notebook_task": {
+            "notebook_path": "/Workspace/Users/anmolpynampuram@gmail.com/falure_2",
+            "source": "WORKSPACE"
+          },
+          "state": {
+            "life_cycle_state": "TERMINATED",
+            "result_state": "FAILED",
+            "state_message": "Workload failed, see run output for details",
+            "user_cancelled_or_timedout": false
+          },
+          "run_page_url": "https://dbc-b0680871-a284.cloud.databricks.com/?o=2698439894674083#job/196598260835891/run/271294422615211",
+          "start_time": 1791364993815,
+          "setup_duration": 2000,
+          "execution_duration": 30000,
+          "cleanup_duration": 0,
+          "end_time": 1791365026239,
+          "attempt_number": 0,
+          "status": {
+            "state": "TERMINATED",
+            "termination_details": {
+              "code": "RUN_EXECUTION_ERROR",
+              "type": "CLIENT_ERROR",
+              "message": "Workload failed, see run output for details"
+            }
+          },
+          "effective_performance_target": "PERFORMANCE_OPTIMIZED"
+        },
+        {
+          "run_id": 541579543868724,
+          "task_key": "Task_fail_2",
+          "run_if": "ALL_SUCCESS",
+          "notebook_task": {
+            "notebook_path": "/Workspace/Users/anmolpynampuram@gmail.com/falure_2",
+            "source": "WORKSPACE"
+          },
+          "state": {
+            "life_cycle_state": "TERMINATED",
+            "result_state": "FAILED",
+            "state_message": "Workload failed, see run output for details",
+            "user_cancelled_or_timedout": false
+          },
+          "run_page_url": "https://dbc-b0680871-a284.cloud.databricks.com/?o=2698439894674083#job/196598260835891/run/541579543868724",
+          "start_time": 1791365029600,
+          "setup_duration": 3000,
+          "execution_duration": 14000,
+          "cleanup_duration": 0,
+          "end_time": 1791365047412,
+          "attempt_number": 1,
+          "status": {
+            "state": "TERMINATED",
+            "termination_details": {
+              "code": "RUN_EXECUTION_ERROR",
+              "type": "CLIENT_ERROR",
+              "message": "Workload failed, see run output for details"
+            }
+          },
+          "effective_performance_target": "PERFORMANCE_OPTIMIZED"
+        }
+      ],
+      "format": "MULTI_TASK",
+      "status": {
+        "state": "TERMINATED",
+        "termination_details": {
+          "code": "RUN_EXECUTION_ERROR",
+          "type": "CLIENT_ERROR",
+          "message": "Task Task_fail_2 failed with message: Workload failed, see run output for details."
+        }
+      },
+      "job_run_id": 611121357504683,
+      "effective_performance_target": "PERFORMANCE_OPTIMIZED"
+    },
+    {
+      "job_id": 658020425585260,
+      "run_id": 435372494047963,
+      "number_in_job": 435372494047963,
+      "original_attempt_run_id": 435372494047963,
+      "state": {
+        "life_cycle_state": "INTERNAL_ERROR",
+        "result_state": "FAILED",
+        "state_message": "Task task_failure failed with message: Workload failed, see run output for details.",
+        "user_cancelled_or_timedout": false
+      },
+      "start_time": 1791342054937,
+      "setup_duration": 77000,
+      "execution_duration": 13000,
+      "cleanup_duration": 0,
+      "end_time": 1791342146175,
+      "run_duration": 91238,
+      "queue_duration": 73913,
+      "trigger": "ONE_TIME",
+      "run_name": "JOB-FAILURA",
+      "run_page_url": "https://dbc-b0680871-a284.cloud.databricks.com/?o=2698439894674083#job/658020425585260/run/435372494047963",
+      "run_type": "JOB_RUN",
+      "tasks": [
+        {
+          "run_id": 723277981293824,
+          "task_key": "task_failure",
+          "run_if": "ALL_SUCCESS",
+          "notebook_task": {
+            "notebook_path": "/Workspace/Users/anmolpynampuram@gmail.com/JOB_FAILURE",
+            "source": "WORKSPACE"
+          },
+          "state": {
+            "life_cycle_state": "TERMINATED",
+            "result_state": "FAILED",
+            "state_message": "Workload failed, see run output for details",
+            "user_cancelled_or_timedout": false,
+            "queue_reason": "Queued due to reaching maximum concurrent runs of 1."
+          },
+          "run_page_url": "https://dbc-b0680871-a284.cloud.databricks.com/?o=2698439894674083#job/658020425585260/run/723277981293824",
+          "start_time": 1791342054960,
+          "setup_duration": 77000,
+          "execution_duration": 13000,
+          "cleanup_duration": 0,
+          "end_time": 1791342145702,
+          "queue_duration": 73913,
+          "attempt_number": 0,
+          "status": {
+            "state": "TERMINATED",
+            "termination_details": {
+              "code": "RUN_EXECUTION_ERROR",
+              "type": "CLIENT_ERROR",
+              "message": "Workload failed, see run output for details"
+            },
+            "queue_details": {
+              "code": "MAX_CONCURRENT_RUNS_REACHED",
+              "message": "Queued due to reaching maximum concurrent runs of 1."
+            }
+          },
+          "effective_performance_target": "PERFORMANCE_OPTIMIZED"
+        }
+      ],
+      "format": "MULTI_TASK",
+      "status": {
+        "state": "TERMINATED",
+        "termination_details": {
+          "code": "RUN_EXECUTION_ERROR",
+          "type": "CLIENT_ERROR",
+          "message": "Task task_failure failed with message: Workload failed, see run output for details."
+        }
+      },
+      "job_run_id": 435372494047963,
+      "effective_performance_target": "PERFORMANCE_OPTIMIZED"
+    },
+    {
+      "job_id": 568297559042585,
+      "run_id": 799790931046816,
+      "number_in_job": 799790931046816,
+      "original_attempt_run_id": 799790931046816,
+      "state": {
+        "life_cycle_state": "TERMINATED",
+        "result_state": "SUCCESS",
+        "state_message": "",
+        "user_cancelled_or_timedout": false
+      },
+      "start_time": 1791342043620,
+      "setup_duration": 3000,
+      "execution_duration": 10000,
+      "cleanup_duration": 0,
+      "end_time": 1791342057620,
+      "run_duration": 14000,
+      "trigger": "ONE_TIME",
+      "run_name": "JOB-SUCCESS",
+      "run_page_url": "https://dbc-b0680871-a284.cloud.databricks.com/?o=2698439894674083#job/568297559042585/run/799790931046816",
+      "run_type": "JOB_RUN",
+      "tasks": [
+        {
+          "run_id": 689493286361158,
+          "task_key": "task_success",
+          "run_if": "ALL_SUCCESS",
+          "notebook_task": {
+            "notebook_path": "/Workspace/Users/anmolpynampuram@gmail.com/JOB_SUCCESS",
+            "source": "WORKSPACE"
+          },
+          "state": {
+            "life_cycle_state": "TERMINATED",
+            "result_state": "SUCCESS",
+            "state_message": "",
+            "user_cancelled_or_timedout": false
+          },
+          "run_page_url": "https://dbc-b0680871-a284.cloud.databricks.com/?o=2698439894674083#job/568297559042585/run/689493286361158",
+          "start_time": 1791342043646,
+          "setup_duration": 3000,
+          "execution_duration": 10000,
+          "cleanup_duration": 0,
+          "end_time": 1791342057193,
+          "attempt_number": 0,
+          "status": {
+            "state": "TERMINATED",
+            "termination_details": {
+              "code": "SUCCESS",
+              "type": "SUCCESS",
+              "message": ""
+            }
+          },
+          "effective_performance_target": "PERFORMANCE_OPTIMIZED"
+        }
+      ],
+      "format": "MULTI_TASK",
+      "status": {
+        "state": "TERMINATED",
+        "termination_details": {
+          "code": "SUCCESS",
+          "type": "SUCCESS",
+          "message": ""
+        }
+      },
+      "job_run_id": 799790931046816,
+      "effective_performance_target": "PERFORMANCE_OPTIMIZED"
+    },
+    {
+      "job_id": 658020425585260,
+      "run_id": 437531692562553,
+      "number_in_job": 437531692562553,
+      "original_attempt_run_id": 437531692562553,
+      "state": {
+        "life_cycle_state": "INTERNAL_ERROR",
+        "result_state": "FAILED",
+        "state_message": "Task task_failure failed with message: Workload failed, see run output for details.",
+        "user_cancelled_or_timedout": false
+      },
+      "start_time": 1791342025801,
+      "setup_duration": 0,
+      "execution_duration": 0,
+      "cleanup_duration": 0,
+      "end_time": 1791342128444,
+      "run_duration": 102643,
+      "trigger": "ONE_TIME",
+      "run_name": "JOB-FAILURA",
+      "run_page_url": "https://dbc-b0680871-a284.cloud.databricks.com/?o=2698439894674083#job/658020425585260/run/437531692562553",
+      "run_type": "JOB_RUN",
+      "tasks": [
+        {
+          "run_id": 584755969648631,
+          "task_key": "task_failure",
+          "run_if": "ALL_SUCCESS",
+          "notebook_task": {
+            "notebook_path": "/Workspace/Users/anmolpynampuram@gmail.com/JOB_FAILURE",
+            "source": "WORKSPACE"
+          },
+          "state": {
+            "life_cycle_state": "TERMINATED",
+            "result_state": "FAILED",
+            "state_message": "Workload failed, see run output for details",
+            "user_cancelled_or_timedout": false
+          },
+          "run_page_url": "https://dbc-b0680871-a284.cloud.databricks.com/?o=2698439894674083#job/658020425585260/run/584755969648631",
+          "start_time": 1791342025834,
+          "setup_duration": 3000,
+          "execution_duration": 15000,
+          "cleanup_duration": 0,
+          "end_time": 1791342044198,
+          "attempt_number": 0,
+          "status": {
+            "state": "TERMINATED",
+            "termination_details": {
+              "code": "RUN_EXECUTION_ERROR",
+              "type": "CLIENT_ERROR",
+              "message": "Workload failed, see run output for details"
+            }
+          },
+          "effective_performance_target": "PERFORMANCE_OPTIMIZED"
+        },
+        {
+          "run_id": 731249776086533,
+          "task_key": "task_failure",
+          "run_if": "ALL_SUCCESS",
+          "notebook_task": {
+            "notebook_path": "/Workspace/Users/anmolpynampuram@gmail.com/JOB_FAILURE",
+            "source": "WORKSPACE"
+          },
+          "state": {
+            "life_cycle_state": "TERMINATED",
+            "result_state": "FAILED",
+            "state_message": "Workload failed, see run output for details",
+            "user_cancelled_or_timedout": false
+          },
+          "run_page_url": "https://dbc-b0680871-a284.cloud.databricks.com/?o=2698439894674083#job/658020425585260/run/731249776086533",
+          "start_time": 1791342049177,
+          "setup_duration": 65000,
+          "execution_duration": 13000,
+          "cleanup_duration": 0,
+          "end_time": 1791342127931,
+          "attempt_number": 1,
+          "status": {
+            "state": "TERMINATED",
+            "termination_details": {
+              "code": "RUN_EXECUTION_ERROR",
+              "type": "CLIENT_ERROR",
+              "message": "Workload failed, see run output for details"
+            }
+          },
+          "effective_performance_target": "PERFORMANCE_OPTIMIZED"
+        }
+      ],
+      "format": "MULTI_TASK",
+      "status": {
+        "state": "TERMINATED",
+        "termination_details": {
+          "code": "RUN_EXECUTION_ERROR",
+          "type": "CLIENT_ERROR",
+          "message": "Task task_failure failed with message: Workload failed, see run output for details."
+        }
+      },
+      "job_run_id": 437531692562553,
+      "effective_performance_target": "PERFORMANCE_OPTIMIZED"
+    }
+  ],
+  "outputs": {
+    "541579543868724": {
+      "error": "[TABLE_OR_VIEW_NOT_FOUND] The table or view `bronze`.`raw_customers` cannot be found. Verify the spelling and correctness of the schema and catalog.\nIf you did not qualify the name with a schema, verify the current_schema() output, or qualify the name with the correct schema and catalog.\nTo tolerate the error on drop use DROP VIEW IF EXISTS or DROP TABLE IF EXISTS. SQLSTATE: 42P01"
+    },
+    "723277981293824": {
+      "error": "Exception: Deliberate failure: Testing Databricks job error handling."
+    },
+    "731249776086533": {
+      "error": "Exception: Deliberate failure: Testing Databricks job error handling."
+    }
+  }
+}
