@@ -32,12 +32,27 @@ def print_run_detail(r: RunRecord) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="python3 -m src.app")
-    p.add_argument("--source", choices=["mock", "live"], default="mock",
-                   help="mock sample data (default) or the saved live snapshot")
-    p.add_argument("--data", type=Path, default=None, help="mock runs JSON file (mock source only)")
-    p.add_argument("--snapshot", type=Path, default=None,
-                   help="live snapshot file (default data/live/runs_snapshot.json)")
-    p.add_argument("--now", help="ISO time with timezone; default is the current time")
+    p.add_argument(
+        "--source",
+        choices=["mock", "live"],
+        default="mock",
+        help="mock sample data (default) or the saved live snapshot",
+    )
+    p.add_argument(
+        "--data",
+        type=Path,
+        default=None,
+        help="mock runs JSON file (mock source only)",
+    )
+    p.add_argument(
+        "--snapshot",
+        type=Path,
+        default=None,
+        help="live snapshot file (default data/live/runs_snapshot.json)",
+    )
+    p.add_argument(
+        "--now", help="ISO time with timezone; default is the current time"
+    )
     sub = p.add_subparsers(dest="command", required=True)
 
     sub.add_parser("summary", help="counts per result state")
@@ -46,7 +61,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--job", help="job_id filter")
 
     s = sub.add_parser("failed", help="failed or timed-out runs")
-    s.add_argument("--hours", type=float, help="only the last N hours before --now")
+    s.add_argument(
+        "--hours", type=float, help="only the last N hours before --now"
+    )
     s.add_argument("--job", help="job_id filter")
 
     s = sub.add_parser("slow", help="runs longer than a threshold")
@@ -57,20 +74,32 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("run", help="details of one run")
     s.add_argument("run_id")
 
-    s = sub.add_parser("collect", help="fetch live runs from Databricks (read-only) and save a snapshot")
+    s = sub.add_parser(
+        "collect",
+        help="fetch live runs from Databricks (read-only) and save a snapshot",
+    )
     s.add_argument("--max-runs", type=int, default=100)
     s.add_argument("--max-output-fetches", type=int, default=20)
 
     s = sub.add_parser("report", help="generate an incident report for a run")
     s.add_argument("run_id")
-    s.add_argument("--no-llm", action="store_true", help="skip language model hypotheses generation")
+    s.add_argument(
+        "--no-llm",
+        action="store_true",
+        help="skip language model hypotheses generation",
+    )
     s.add_argument("--top-k", type=int, default=5)
 
     s = sub.add_parser("ask", help="ask a natural-language question")
     s.add_argument("question")
-    s.add_argument("--no-llm", action="store_true", help="never call the language model")
-    s.add_argument("--with-conflict-demo", action="store_true",
-                   help="also index the planted conflict document HIST-003")
+    s.add_argument(
+        "--no-llm", action="store_true", help="never call the language model"
+    )
+    s.add_argument(
+        "--with-conflict-demo",
+        action="store_true",
+        help="also index the planted conflict document HIST-003",
+    )
     s.add_argument("--top-k", type=int, default=5)
     return p
 
@@ -80,25 +109,40 @@ def _load_runs(args, now: datetime):
     if args.source == "live":
         if args.data is not None:
             raise ValueError("--data only applies to --source mock")
-        from src.monitoring.live_collector import SNAPSHOT_PATH, describe_age, load_snapshot
+        from src.monitoring.live_collector import (
+            SNAPSHOT_PATH,
+            describe_age,
+            load_snapshot,
+        )
 
         collection = load_snapshot(args.snapshot or SNAPSHOT_PATH)
         age = describe_age(collection.fetched_at, now)
-        lines = [f"[LIVE DATA] {len(collection.runs)} runs from a snapshot fetched "
-                 f"{fmt_time(collection.fetched_at)} ({age})"]
+        lines = [
+            f"[LIVE DATA] {len(collection.runs)} runs from a snapshot fetched "
+            f"{fmt_time(collection.fetched_at)} ({age})"
+        ]
         if collection.truncated:
-            lines.append("  WARNING: the snapshot is truncated; older runs exist that are not shown")
+            lines.append(
+                "  WARNING: the snapshot is truncated; older runs exist that are not shown"
+            )
         lines += [f"  snapshot warning: {w}" for w in collection.warnings]
-        note = (f"live snapshot fetched {fmt_time(collection.fetched_at)} ({age}); "
-                "this is not real-time monitoring")
+        note = (
+            f"live snapshot fetched {fmt_time(collection.fetched_at)} ({age}); "
+            "this is not real-time monitoring"
+        )
         return list(collection.runs), lines, note
 
     if args.snapshot is not None:
         raise ValueError("--snapshot only applies to --source live")
     loaded = load_mock_runs(args.data or DEFAULT_DATA)
-    lines = [f"[MOCK DATA] {len(loaded.runs)} runs loaded | {loaded.duplicates_dropped} duplicate dropped | "
-             f"{len(loaded.issues)} records rejected"]
-    lines += [f"  load issue at index {i.index} ({i.run_id}): {i.message}" for i in loaded.issues]
+    lines = [
+        f"[MOCK DATA] {len(loaded.runs)} runs loaded | {loaded.duplicates_dropped} duplicate dropped | "
+        f"{len(loaded.issues)} records rejected"
+    ]
+    lines += [
+        f"  load issue at index {i.index} ({i.run_id}): {i.message}"
+        for i in loaded.issues
+    ]
     return loaded.runs, lines, None
 
 
@@ -113,17 +157,23 @@ def _build_pipeline(docs, runs):
     embedder = load_embedder()
     chunks = [c for d in docs for c in chunk_document(d)]
     try:
-        cache = EmbeddingCache.load(CACHE_PATH, embedder.model_name, embedder.dim)
+        cache = EmbeddingCache.load(
+            CACHE_PATH, embedder.model_name, embedder.dim
+        )
     except (FileNotFoundError, ValueError):
         cache = EmbeddingCache(embedder.model_name, embedder.dim)
     vectors = embed_chunks(chunks, embedder, cache)
     cache.save(CACHE_PATH)
     index = VectorIndex(embedder.dim, embedder.model_name)
     index.add(chunks, vectors)
-    return RetrievalPipeline(index, embedder, known_run_ids=[r.run_id for r in runs])
+    return RetrievalPipeline(
+        index, embedder, known_run_ids=[r.run_id for r in runs]
+    )
 
 
-def _run_ask(args, now: datetime, runs: Sequence[RunRecord], data_note: Optional[str]) -> int:
+def _run_ask(
+    args, now: datetime, runs: Sequence[RunRecord], data_note: Optional[str]
+) -> int:
     from src.generation.llm_client import OllamaClient
     from src.ingestion.parser import load_documents
     from src.retrieval.embeddings import EmbeddingError
@@ -131,14 +181,27 @@ def _run_ask(args, now: datetime, runs: Sequence[RunRecord], data_note: Optional
 
     try:
         docs = []
-        for directory in [DOC_DIR] + ([DEMO_DIR] if args.with_conflict_demo else []):
-            loaded_docs = load_documents(directory)
-            docs.extend(loaded_docs.docs)
-            for issue in loaded_docs.issues:
-                print(f"  document issue in {issue.filename}: {issue.message}")
+        for directory in [DOC_DIR] + (
+            [DEMO_DIR] if args.with_conflict_demo else []
+        ):
+            if directory.is_dir():
+                loaded_docs = load_documents(directory)
+                docs.extend(loaded_docs.docs)
+                for issue in loaded_docs.issues:
+                    print(
+                        f"  document issue in {issue.filename}: {issue.message}"
+                    )
         llm = DisabledLLM() if args.no_llm else OllamaClient.from_env()
-        answer = answer_question(args.question, now, runs, lambda: _build_pipeline(docs, runs),
-                                 docs, llm, top_k=args.top_k, data_note=data_note)
+        answer = answer_question(
+            args.question,
+            now,
+            runs,
+            lambda: _build_pipeline(docs, runs),
+            docs,
+            llm,
+            top_k=args.top_k,
+            data_note=data_note,
+        )
     except (ValueError, FileNotFoundError, EmbeddingError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -147,19 +210,31 @@ def _run_ask(args, now: datetime, runs: Sequence[RunRecord], data_note: Optional
 
 
 def _run_collect(args) -> int:
-    from src.monitoring.databricks_client import DatabricksClient, DatabricksError
-    from src.monitoring.live_collector import SNAPSHOT_PATH, collect_live, save_snapshot
+    from src.monitoring.databricks_client import (
+        DatabricksClient,
+        DatabricksError,
+    )
+    from src.monitoring.live_collector import (
+        SNAPSHOT_PATH,
+        collect_live,
+        save_snapshot,
+    )
 
     path = args.snapshot or SNAPSHOT_PATH
     try:
-        collection = collect_live(DatabricksClient.from_env(), max_runs=args.max_runs,
-                                  max_output_fetches=args.max_output_fetches)
+        collection = collect_live(
+            DatabricksClient.from_env(),
+            max_runs=args.max_runs,
+            max_output_fetches=args.max_output_fetches,
+        )
     except (ValueError, DatabricksError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     save_snapshot(collection, path)
-    print(f"[LIVE DATA] {len(collection.runs)} runs fetched at {fmt_time(collection.fetched_at)} | "
-          f"truncated {collection.truncated} | snapshot saved to {path}")
+    print(
+        f"[LIVE DATA] {len(collection.runs)} runs fetched at {fmt_time(collection.fetched_at)} | "
+        f"truncated {collection.truncated} | snapshot saved to {path}"
+    )
     for w in collection.warnings:
         print(f"  WARNING: {w}")
     return 0
@@ -169,9 +244,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = build_parser().parse_args(argv)
 
     try:
-        now = datetime.fromisoformat(args.now) if args.now else datetime.now(timezone.utc)
+        now = (
+            datetime.fromisoformat(args.now)
+            if args.now
+            else datetime.now(timezone.utc)
+        )
         if now.tzinfo is None:
-            raise ValueError("--now must include a timezone, e.g. 2026-10-05T12:00:00+00:00")
+            raise ValueError(
+                "--now must include a timezone, e.g. 2026-10-05T12:00:00+00:00"
+            )
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -191,7 +272,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     cmd = args.command
     if cmd == "summary":
-        for state, n in sorted(q.status_counts(runs).items(), key=lambda kv: kv[0].value):
+        for state, n in sorted(
+            q.status_counts(runs).items(), key=lambda kv: kv[0].value
+        ):
             print(f"  {state.value:<10} {n}")
 
     elif cmd == "latest":
@@ -244,7 +327,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     return 0
 
 
-def _run_report(args, now: datetime, runs: Sequence[RunRecord], data_note: Optional[str]) -> int:
+def _run_report(
+    args, now: datetime, runs: Sequence[RunRecord], data_note: Optional[str]
+) -> int:
     from src.generation.llm_client import OllamaClient
     from src.ingestion.parser import load_documents
     from src.reporting.incident_report import build_incident_report
@@ -263,14 +348,20 @@ def _run_report(args, now: datetime, runs: Sequence[RunRecord], data_note: Optio
             if docs:
                 pipeline = _build_pipeline(docs, runs)
     except Exception as exc:
-        print(f"warning: could not load retrieval pipeline: {exc}", file=sys.stderr)
+        print(
+            f"warning: could not load retrieval pipeline: {exc}",
+            file=sys.stderr,
+        )
 
     llm = None
     if not args.no_llm:
         try:
             llm = OllamaClient.from_env()
         except Exception as exc:
-            print(f"warning: could not connect to Ollama ({exc}); skipping model hypotheses", file=sys.stderr)
+            print(
+                f"warning: could not connect to Ollama ({exc}); skipping model hypotheses",
+                file=sys.stderr,
+            )
 
     report = build_incident_report(
         target_run=target,

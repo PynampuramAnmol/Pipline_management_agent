@@ -204,6 +204,7 @@ def answer_question(
 
     elif intent == RUN_DIAGNOSIS or intent == EXPLAIN:
         ctx = retrieve_for_question(get_pipeline(), question, runs, top_k=top_k, docs=docs)
+        # Directly generate answer using facts context (and any available evidence)
         final = generate_answer(ctx, llm)
         body, llm_used, warnings = final.text, final.llm_used, final.warnings
 

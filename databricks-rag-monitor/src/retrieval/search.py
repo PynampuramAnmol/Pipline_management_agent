@@ -7,8 +7,11 @@ from typing import Iterable, Optional
 import numpy as np
 
 from src.retrieval.embeddings import Embedder
-from src.retrieval.evidence import DEFAULT_MIN_SCORE, EvidenceSet, select_evidence
+from src.retrieval.evidence import EvidenceSet, select_evidence
 from src.retrieval.vector_index import VectorIndex, VectorResult
+
+# Similarity threshold to filter out low-relevance diagnostic noise (< 0.50)
+STRICT_MIN_SCORE = 0.50
 
 _RUN_AFTER_WORD = re.compile(r"\brun(?:\s+id)?\s*#?\s*(r?\d[\w-]*)", re.IGNORECASE)
 _BARE_RUN = re.compile(r"\br\d+\b", re.IGNORECASE)
@@ -43,7 +46,7 @@ class RetrievalPipeline:
         index: VectorIndex,
         embedder: Embedder,
         known_run_ids: Iterable[str],
-        min_score: float = DEFAULT_MIN_SCORE,
+        min_score: float = STRICT_MIN_SCORE,
         max_per_doc: int = 2,
     ) -> None:
         if embedder.model_name != index.model_name or embedder.dim != index.dim:

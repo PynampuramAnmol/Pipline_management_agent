@@ -180,21 +180,20 @@ def route_question(question: str, now: datetime) -> Route:
     if words & HISTORY_WORDS and words & ERRORISH:
         return make(HISTORY, "R4 earlier occurrences")
 
-    # R5: durations
-    is_duration = bool(words & DURATION_WORDS) or "execution time" in q or "how long" in q
+    # R5: explicit duration queries only
     if threshold is not None:
         return make(SLOW_THRESHOLD, "R5 duration threshold", use_window=True, thr=threshold)
-    if is_duration:
+
+    explicit_duration = bool(words & DURATION_WORDS) or "execution time" in q or "how long" in q
+    if explicit_duration and not (words & EXPLAIN_WORDS or words & FAILURE_WORDS):
         if words & {"longest", "slowest"}:
             return make(LONGEST, "R5 longest run", use_window=True)
         if words & TREND_WORDS or "over time" in q:
             return make(UNSUPPORTED_DURATION, "R5 duration trend",
                         notes=("duration trends over time are not implemented yet; ask for the longest "
                                "run, or give a threshold such as 'exceeded 20 minutes'",))
-        if "why" not in words:
-            return make(UNSUPPORTED_DURATION, "R5 duration without a threshold",
-                        notes=("no threshold given: say e.g. 'exceeded 20 minutes', or ask for the longest run",))
-        # "why ... slow" falls through to the explain rule
+        return make(UNSUPPORTED_DURATION, "R5 duration without a threshold",
+                    notes=("no threshold given: say e.g. 'exceeded 20 minutes', or ask for the longest run",))
 
     # R6: how many failures
     if words & FAILURE_WORDS and ("how many" in q or "number of" in q or "count" in words):
