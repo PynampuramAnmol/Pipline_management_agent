@@ -9,3 +9,6 @@ __pycache__/
 data/cache/
 data/raw_samples/
 data/live/
+node_modules/
+dist/
+frontend/dist/
