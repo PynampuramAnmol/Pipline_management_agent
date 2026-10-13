@@ -8,4 +8,7 @@ __pycache__/
 .ipynb_checkpoints/
 data/cache/
 data/raw_samples/
-data/live/
+data/live/node_modules/
+dist/
+.env
+server/.env
