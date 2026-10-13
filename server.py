@@ -36,6 +36,7 @@ from src.monitoring.live_collector import (
 )
 from src.monitoring.models import ResultState, RunRecord
 from src.monitoring.queries import failed_runs, get_failed_runs, repeated_errors
+from src.reporting.brief_report import build_brief_report
 from src.reporting.incident_report import build_incident_report
 from src.retrieval.chunk_embeddings import EmbeddingCache, embed_chunks
 from src.retrieval.embeddings import load_embedder
@@ -56,8 +57,8 @@ app = FastAPI(
 # Allow requests from local frontend (Vite port 5173, 3000, 8080, etc.)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -139,8 +140,8 @@ def init_system(source: str = "live") -> None:
         except Exception as exc:
             print(f"Warning: Could not load documents: {exc}", file=sys.stderr)
 
-    # 3. Build Vector Retrieval Pipeline
-    search_pipeline = _build_search_pipeline(docs, runs_data)
+    # 3. Retrieval pipeline is built lazily (only chat/LLM paths need it)
+    search_pipeline = None
 
     # 4. Initialize LLM client
     try:
@@ -208,7 +209,29 @@ def refresh_runs():
         raise HTTPException(status_code=500, detail=f"Failed to refresh live runs: {exc}")
 
 
-# 3. Incident Report Generator Endpoint
+# 2b. Dashboard summary + minimal incident report (deterministic, no model)
+@app.get("/api/summary")
+def summary():
+    bad = {"FAILED", "TIMED_OUT", "CANCELLED"}
+    total = len(runs_data)
+    failed = sum(1 for r in runs_data if r.result_state.value in bad)
+    ok = sum(1 for r in runs_data if r.result_state is ResultState.SUCCESS)
+    return {
+        "total": total, "failed": failed, "succeeded": ok,
+        "source": runs_data[0].source if runs_data else None,
+    }
+
+
+@app.get("/api/report/{run_id}")
+def brief_report(run_id: str):
+    found = [r for r in runs_data if str(r.run_id) == str(run_id)]
+    if not found:
+        raise HTTPException(status_code=404, detail=f"Run ID '{run_id}' not found.")
+    rep = build_brief_report(found[0])
+    return {**rep.to_dict(), "markdown": rep.to_markdown()}
+
+
+# 3. Incident Report Generator Endpoint (long form, optional LLM)
 @app.get("/api/incident-report/{run_id}")
 def generate_incident_report(run_id: str, similarity_threshold: float = 0.5):
     found = [r for r in runs_data if str(r.run_id) == str(run_id)]
@@ -302,4 +325,4 @@ def handle_chat(req: ChatRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("server:app", host="127.0.0.1", port=8000, reload=False)
