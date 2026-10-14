@@ -1,173 +1,156 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from 'react'
+import useSWR, { SWRConfig } from 'swr'
+import './style.css'
+import { fetcher, refreshFromDatabricks } from './lib/api.js'
+import Header from './components/Header.jsx'
+import KpiRow from './components/KpiRow.jsx'
+import Charts from './components/Charts.jsx'
+import PipelinesTable from './components/PipelinesTable.jsx'
+import RunsList from './components/RunsList.jsx'
+import IncidentReport from './components/IncidentReport.jsx'
 
-const BAD = new Set(["FAILED", "TIMED_OUT", "CANCELLED"]);
-const tone = (s) => (BAD.has(s) ? "bad" : s === "SUCCESS" ? "ok" : "neutral");
-
-async function api(path, opts) {
-  const res = await fetch(path, opts);
-  if (!res.ok) {
-    let msg = res.statusText;
-    try { msg = (await res.json()).detail || msg; } catch {}
-    throw new Error(msg);
-  }
-  return res.json();
+function scrollBehavior() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
 }
 
-function Stat({ label, value, tone }) {
-  return (
-    <div className={`stat ${tone || ""}`}>
-      <div className="stat-value">{value}</div>
-      <div className="stat-label">{label}</div>
-    </div>
-  );
-}
+function Dashboard() {
+  const [lastRefreshed, setLastRefreshed] = useState(null)
+  const markRefreshed = () => setLastRefreshed(new Date())
+  const stats = useSWR('/api/stats', fetcher, { onSuccess: markRefreshed })
+  const runs = useSWR('/api/runs', fetcher)
 
-function Report({ runId, onClose }) {
-  const [rep, setRep] = useState(null);
-  const [err, setErr] = useState("");
-  const [refs, setRefs] = useState(null);
+  const [refreshing, setRefreshing] = useState(false)
+  const [refreshError, setRefreshError] = useState(null)
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [jobFilter, setJobFilter] = useState(null)
+  const [selectedRunId, setSelectedRunId] = useState(null)
+
+  const [theme, setTheme] = useState('dark')
+
+  const runsRef = useRef(null)
+  const reportRef = useRef(null)
 
   useEffect(() => {
-    setRefs(null);
-    api(`/api/report/${encodeURIComponent(runId)}/references`).then(setRefs)
-      .catch((e) => setRefs({ status: "unavailable", items: [], note: e.message }));
-  }, [runId]);
+    const stored = window.localStorage.getItem('pm-theme')
+    const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches
+    setTheme(stored === 'light' || stored === 'dark' ? stored : prefersLight ? 'light' : 'dark')
+  }, [])
 
   useEffect(() => {
-    setRep(null); setErr("");
-    api(`/api/report/${encodeURIComponent(runId)}`).then(setRep).catch((e) => setErr(e.message));
-  }, [runId]);
+    document.documentElement.dataset.theme = theme
+  }, [theme])
 
-  function download() {
-    const blob = new Blob([rep.markdown], { type: "text/markdown" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `incident-${rep.run.id}.md`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+  function onToggleTheme() {
+    setTheme((current) => {
+      const next = current === 'dark' ? 'light' : 'dark'
+      window.localStorage.setItem('pm-theme', next)
+      return next
+    })
   }
 
-  return (
-    <aside className="panel">
-      <div className="panel-head">
-        <h2>Incident report</h2>
-        <button className="ghost" onClick={onClose} aria-label="Close">✕</button>
-      </div>
-      {err && <p className="error">{err}</p>}
-      {!rep && !err && <p className="muted">Loading…</p>}
-      {rep && (
-        <>
-          <dl>
-            <dt>Job</dt><dd>{rep.job.name} <span className="muted">({rep.job.id})</span></dd>
-            <dt>Run ID</dt><dd className="mono">{rep.run.id}</dd>
-            <dt>Status</dt><dd><span className={`badge ${tone(rep.run.status)}`}>{rep.run.status}</span></dd>
-            <dt>Started</dt><dd>{rep.run.started}</dd>
-            <dt>Ended</dt><dd>{rep.run.ended}</dd>
-            <dt>Duration</dt><dd>{rep.run.duration}</dd>
-            {rep.run.queued && (<><dt>Queued</dt><dd>{rep.run.queued}</dd></>)}
-            {rep.failed_tasks.length > 0 && (
-              <><dt>Failed tasks</dt>
-              <dd>{rep.failed_tasks.map((t) => `${t.task}${t.attempts > 1 ? ` (${t.attempts} attempts)` : ""}`).join(", ")}</dd></>
-            )}
-            {rep.failure.type && (<><dt>Error type</dt><dd className="mono">{rep.failure.type}</dd></>)}
-          </dl>
-          <h3>Reason for failure</h3>
-          <pre className={rep.failure.reason_recorded ? "reason" : "reason none"}>{rep.failure.reason}</pre>
-          <h3>Reference documents (custom RAG)</h3>
-          {!refs && <p className="muted">Searching…</p>}
-          {refs && refs.items.length === 0 && <p className="muted">{refs.note}</p>}
-          {refs && refs.items.map((i) => (
-            <div key={i.chunk_id} className="ref">
-              <div><strong>{i.doc_id}</strong> {i.title} <span className="muted">· {i.doc_type} · {i.source} · score {i.score}{i.linked_to_run ? " · linked to this run" : ""}</span></div>
-              <div className="muted small">{i.snippet}</div>
-            </div>
-          ))}
-          {refs && refs.items.length > 0 && <p className="muted small">{refs.note}</p>}
-          <button onClick={download}>Download .md</button>
-        </>
-      )}
-    </aside>
-  );
-}
+  useEffect(() => {
+    if (selectedRunId && reportRef.current) {
+      reportRef.current.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })
+      reportRef.current.focus({ preventScroll: true })
+    }
+  }, [selectedRunId])
 
-export default function App() {
-  const [runs, setRuns] = useState([]);
-  const [summary, setSummary] = useState(null);
-  const [selected, setSelected] = useState(null);
-  const [filter, setFilter] = useState("all");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
-
-  async function load() {
+  async function onRefresh() {
+    setRefreshing(true)
+    setRefreshError(null)
     try {
-      const [r, s] = await Promise.all([api("/api/runs"), api("/api/summary")]);
-      setRuns(r.runs); setSummary(s); setErr("");
-    } catch (e) { setErr(`Backend unreachable: ${e.message}`); }
-  }
-  useEffect(() => { load(); }, []);
-
-  async function refresh() {
-    setBusy(true);
-    try { await api("/api/runs/refresh", { method: "POST" }); await load(); }
-    catch (e) { setErr(`Refresh failed: ${e.message}`); }
-    finally { setBusy(false); }
+      await refreshFromDatabricks()
+      await Promise.all([stats.mutate(), runs.mutate()])
+    } catch (err) {
+      setRefreshError(
+        err.unreachable ? 'Backend unreachable, is `python server.py` running?' : err.message,
+      )
+    } finally {
+      setRefreshing(false)
+    }
   }
 
-  const shown = useMemo(
-    () => runs.filter((r) => filter === "all" || (filter === "failed" ? BAD.has(r.status) : r.status === "SUCCESS")),
-    [runs, filter]
-  );
+  function onSelectJob(jobId) {
+    setJobFilter((current) => (String(current) === String(jobId) ? null : String(jobId)))
+    runsRef.current?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })
+  }
+
+  function onCloseReport() {
+    const id = selectedRunId
+    setSelectedRunId(null)
+    requestAnimationFrame(() => {
+      const row = document.querySelector(`[data-run-id="${CSS.escape(String(id))}"]`)
+      ;(row || runsRef.current)?.focus?.()
+    })
+  }
+
+  const error = stats.error || runs.error
+  const source = runs.data?.runs?.[0]?.source
 
   return (
     <div className="app">
-      <header>
-        <div>
-          <h1>Pipeline Monitor</h1>
-          <p className="muted">Databricks job runs{summary?.source ? ` · source: ${summary.source}` : ""}</p>
-        </div>
-        <button onClick={refresh} disabled={busy}>{busy ? "Refreshing…" : "Refresh from Databricks"}</button>
-      </header>
+      <Header
+        source={source}
+        lastRefreshed={lastRefreshed}
+        refreshing={refreshing}
+        refreshError={refreshError}
+        onRefresh={onRefresh}
+        theme={theme}
+        onToggleTheme={onToggleTheme}
+      />
 
-      {err && <p className="error">{err}</p>}
-
-      {summary && (
-        <section className="stats">
-          <Stat label="Runs" value={summary.total} />
-          <Stat label="Succeeded" value={summary.succeeded} tone="ok" />
-          <Stat label="Failed" value={summary.failed} tone="bad" />
-        </section>
-      )}
-
-      <div className="layout">
-        <section className="card">
-          <div className="filters">
-            {["all", "failed", "ok"].map((f) => (
-              <button key={f} className={filter === f ? "chip active" : "chip"} onClick={() => setFilter(f)}>
-                {f === "ok" ? "succeeded" : f}
-              </button>
-            ))}
+      <main className="main">
+        {error && (
+          <div className="banner banner-error" role="alert">
+            {error.unreachable
+              ? 'Backend unreachable, is `python server.py` running?'
+              : `Could not load data: ${error.message}`}
           </div>
-          <table>
-            <thead><tr><th>Job</th><th>Run</th><th>Status</th><th>Started</th><th>Duration</th></tr></thead>
-            <tbody>
-              {shown.map((r) => (
-                <tr key={r.run_id} className={r.run_id === selected ? "sel" : ""}
-                    onClick={() => BAD.has(r.status) && setSelected(r.run_id)}
-                    style={{ cursor: BAD.has(r.status) ? "pointer" : "default" }}>
-                  <td>{r.job_name}</td>
-                  <td className="mono">{r.run_id}</td>
-                  <td><span className={`badge ${tone(r.status)}`}>{r.status}</span></td>
-                  <td>{r.start_time ? new Date(r.start_time).toLocaleString() : "—"}</td>
-                  <td>{r.duration_formatted}</td>
-                </tr>
-              ))}
-              {shown.length === 0 && <tr><td colSpan="5" className="muted">No runs.</td></tr>}
-            </tbody>
-          </table>
-          <p className="muted small">Click a failed run to see its incident report.</p>
-        </section>
-        {selected && <Report runId={selected} onClose={() => setSelected(null)} />}
-      </div>
+        )}
+
+        <KpiRow overall={stats.data?.overall} loading={stats.isLoading} />
+        <Charts stats={stats.data} loading={stats.isLoading} />
+        <PipelinesTable
+          jobs={stats.data?.jobs}
+          loading={stats.isLoading}
+          selectedJobId={jobFilter}
+          onSelectJob={onSelectJob}
+        />
+        <div ref={runsRef} tabIndex={-1} className="anchor">
+          <RunsList
+            runs={runs.data?.runs}
+            jobs={stats.data?.jobs}
+            loading={runs.isLoading}
+            statusFilter={statusFilter}
+            onStatusFilter={setStatusFilter}
+            jobFilter={jobFilter}
+            onJobFilter={setJobFilter}
+            selectedRunId={selectedRunId}
+            onSelectRun={setSelectedRunId}
+          />
+        </div>
+
+        {selectedRunId && (
+          <IncidentReport
+            key={selectedRunId}
+            ref={reportRef}
+            runId={selectedRunId}
+            onClose={onCloseReport}
+          />
+        )}
+      </main>
+
+      <footer className="footer">
+        {stats.data?.note ? <p>{stats.data.note}</p> : null}
+      </footer>
     </div>
-  );
+  )
+}
+
+export default function App() {
+  return (
+    <SWRConfig value={{ revalidateOnFocus: false, shouldRetryOnError: false }}>
+      <Dashboard />
+    </SWRConfig>
+  )
 }
