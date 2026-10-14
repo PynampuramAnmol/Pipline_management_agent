@@ -25,6 +25,13 @@ function Stat({ label, value, tone }) {
 function Report({ runId, onClose }) {
   const [rep, setRep] = useState(null);
   const [err, setErr] = useState("");
+  const [refs, setRefs] = useState(null);
+
+  useEffect(() => {
+    setRefs(null);
+    api(`/api/report/${encodeURIComponent(runId)}/references`).then(setRefs)
+      .catch((e) => setRefs({ status: "unavailable", items: [], note: e.message }));
+  }, [runId]);
 
   useEffect(() => {
     setRep(null); setErr("");
@@ -62,9 +69,20 @@ function Report({ runId, onClose }) {
               <><dt>Failed tasks</dt>
               <dd>{rep.failed_tasks.map((t) => `${t.task}${t.attempts > 1 ? ` (${t.attempts} attempts)` : ""}`).join(", ")}</dd></>
             )}
+            {rep.failure.type && (<><dt>Error type</dt><dd className="mono">{rep.failure.type}</dd></>)}
           </dl>
           <h3>Reason for failure</h3>
-          <pre className={rep.reason_recorded ? "reason" : "reason none"}>{rep.reason}</pre>
+          <pre className={rep.failure.reason_recorded ? "reason" : "reason none"}>{rep.failure.reason}</pre>
+          <h3>Reference documents (custom RAG)</h3>
+          {!refs && <p className="muted">Searching…</p>}
+          {refs && refs.items.length === 0 && <p className="muted">{refs.note}</p>}
+          {refs && refs.items.map((i) => (
+            <div key={i.chunk_id} className="ref">
+              <div><strong>{i.doc_id}</strong> {i.title} <span className="muted">· {i.doc_type} · {i.source} · score {i.score}{i.linked_to_run ? " · linked to this run" : ""}</span></div>
+              <div className="muted small">{i.snippet}</div>
+            </div>
+          ))}
+          {refs && refs.items.length > 0 && <p className="muted small">{refs.note}</p>}
           <button onClick={download}>Download .md</button>
         </>
       )}
@@ -120,7 +138,7 @@ export default function App() {
         </section>
       )}
 
-      <div className={`layout ${selected ? "with-panel" : ""}`}>
+      <div className="layout">
         <section className="card">
           <div className="filters">
             {["all", "failed", "ok"].map((f) => (

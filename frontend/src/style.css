@@ -14,7 +14,7 @@ button.ghost{background:none;color:var(--muted);padding:4px 8px}
 .stat-value{font-size:28px;font-weight:650}.stat-label{color:var(--muted);font-size:13px}
 .stat.ok .stat-value{color:var(--ok)}.stat.bad .stat-value{color:var(--bad)}
 .layout{display:grid;gap:16px;grid-template-columns:1fr}
-.layout.with-panel{grid-template-columns:minmax(0,1.4fr) minmax(320px,1fr)}
+.layout.with-panel{grid-template-columns:1fr}
 .card,.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;overflow:auto}
 .filters{display:flex;gap:8px;margin-bottom:12px}
 .chip{background:none;color:var(--text);border:1px solid var(--line);padding:4px 12px;border-radius:999px;text-transform:capitalize}
@@ -33,3 +33,4 @@ pre.reason.none{background:var(--bg);border-color:var(--muted)}
 .error{color:var(--bad)}
 @media (max-width:800px){.layout.with-panel{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr 1fr}}
 .badge.neutral{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.ref{border-top:1px solid var(--line);padding:8px 0}

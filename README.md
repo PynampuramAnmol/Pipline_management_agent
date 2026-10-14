@@ -1,2 +1,52 @@
 # Databricks Pipeline Monitoring Assistant (Custom RAG)
-Work in progress.
+
+Reads job runs from Databricks (read-only), shows pipeline statistics on a dashboard, and builds an
+incident report for every failed run. The report comes only from recorded run data. No model is on
+the report path, so nothing in it is guessed.
+
+## Architecture
+| Layer | What | Where |
+|---|---|---|
+| Monitoring (deterministic) | run records, counts, failures, history, stats | `src/monitoring/` |
+| Incident report (deterministic) | job, run, tasks, reason, job history | `src/reporting/brief_report.py` |
+| Retrieval (custom RAG, NumPy) | chunking, embeddings, cosine search | `src/ingestion/`, `src/retrieval/` |
+| Generation (LLM, optional) | local Ollama, used only by the chat/ask path | `src/generation/`, `src/routing/` |
+| API | FastAPI | `server.py` |
+| UI | React + Vite | `frontend/` |
+
+Failure reason = the error text Databricks recorded for the run/task, shown verbatim. If none was recorded,
+the report says so.
+
+## Run
+```
+python3 -m venv .venv && source .venv/bin/activate
+python -m pip install -r requirements.txt
+cp .env.example .env        # set DATABRICKS_HOST and DATABRICKS_TOKEN (read access only)
+python server.py            # API on http://127.0.0.1:8000
+cd frontend && npm install && npm run dev   # UI on http://localhost:5173
+```
+Without a live snapshot the app shows mock sample data. "Refresh from Databricks" pulls runs through the Jobs API
+(GET only) and saves `data/live/runs_snapshot.json` (gitignored).
+
+## API
+- `GET /api/runs`, `GET /api/summary`, `GET /api/stats`
+- `GET /api/report/{run_id}` returns JSON plus `markdown`
+- `GET /api/report/{run_id}/references`: custom-RAG reference documents for the run's error text (similar past docs, not a diagnosis)
+- `POST /api/runs/refresh` pulls live runs
+- `POST /api/chat`, `GET /api/incident-report/{run_id}`: optional LLM paths (need local Ollama)
+
+## Tests and evaluation
+```
+python -m pytest -q                                        # unit tests (no model download)
+python -m src.evaluation.retrieval_metrics --embedder hashing   # offline lexical hit@k
+python -m src.evaluation.retrieval_metrics --embedder real      # pretrained embedder (downloads on first use)
+```
+The retrieval set is 9 hand-labelled queries. It is a smoke check, not a benchmark. The hashing embedder is lexical
+only, and the queries share words with the documents, so its score is optimistic. Measure `--embedder real` before
+quoting any number.
+
+## Known limits
+- Duration includes queue time.
+- Databricks result states other than SUCCESS/FAILED are mapped but unverified against real data.
+- The diagnostic documents are mock samples, not written about your real runs.
+- The chat/LLM path is unverified generation. Treat its output as hypotheses.

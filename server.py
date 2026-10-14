@@ -12,8 +12,6 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 # Ensure repo root is on sys.path
@@ -35,8 +33,10 @@ from src.monitoring.live_collector import (
     save_snapshot,
 )
 from src.monitoring.models import ResultState, RunRecord
+from src.monitoring.stats import compute_stats
 from src.monitoring.queries import failed_runs, get_failed_runs, repeated_errors
 from src.reporting.brief_report import build_brief_report
+from src.reporting.references import find_references
 from src.reporting.incident_report import build_incident_report
 from src.retrieval.chunk_embeddings import EmbeddingCache, embed_chunks
 from src.retrieval.embeddings import load_embedder
@@ -62,11 +62,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Mount static files directory
-STATIC_DIR = ROOT / "static"
-if STATIC_DIR.is_dir():
-    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # Global in-memory system instances
 runs_data: list[RunRecord] = []
@@ -159,17 +154,8 @@ def startup_event():
 # --- ENDPOINTS ---
 
 @app.get("/")
-@app.get("/dashboard")
-def dashboard():
-    index_file = STATIC_DIR / "index.html"
-    if index_file.is_file():
-        return FileResponse(index_file)
-    return {
-        "status": "healthy",
-        "service": "PipelinePulse AI Backend",
-        "runs_count": len(runs_data),
-        "docs_count": len(docs),
-    }
+def root():
+    return {"status": "healthy", "service": "PipelinePulse AI Backend", "ui": "http://localhost:5173"}
 
 
 @app.get("/api/health")
@@ -222,13 +208,40 @@ def summary():
     }
 
 
+@app.get("/api/stats")
+def stats():
+    return compute_stats(runs_data)
+
+
 @app.get("/api/report/{run_id}")
 def brief_report(run_id: str):
     found = [r for r in runs_data if str(r.run_id) == str(run_id)]
     if not found:
         raise HTTPException(status_code=404, detail=f"Run ID '{run_id}' not found.")
-    rep = build_brief_report(found[0])
+    rep = build_brief_report(found[0], runs_data)
     return {**rep.to_dict(), "markdown": rep.to_markdown()}
+
+
+@app.get("/api/report/{run_id}/references")
+def report_references(run_id: str):
+    """Custom-RAG reference docs for a run's recorded error. Loads the embedding model on first call."""
+    global search_pipeline
+    found = [r for r in runs_data if str(r.run_id) == str(run_id)]
+    if not found:
+        raise HTTPException(status_code=404, detail=f"Run ID '{run_id}' not found.")
+    run = found[0]
+    reason = build_brief_report(run).to_dict()["failure"]
+    if not reason["reason_recorded"]:
+        return find_references(None, run.run_id, "")  # pipeline unused when no error text
+    if search_pipeline is None:
+        search_pipeline = _build_search_pipeline(docs, runs_data)
+    if search_pipeline is None:
+        return {"status": "unavailable", "items": [],
+                "note": "Retrieval pipeline could not be built (embedding model or documents missing)."}
+    try:
+        return find_references(search_pipeline, run.run_id, reason["reason"])
+    except Exception as exc:
+        return {"status": "unavailable", "items": [], "note": f"Retrieval failed: {exc}"}
 
 
 # 3. Incident Report Generator Endpoint (long form, optional LLM)

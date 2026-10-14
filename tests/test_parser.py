@@ -104,9 +104,9 @@ def test_missing_directory_raises(tmp_path):
 def test_real_corpus_loads_clean():
     res = load_documents(DOCS)
     assert res.issues == []
-    assert len(res.docs) == 12
-    assert {d.source for d in res.docs} == {"mock"}
-    assert Counter(d.doc_type for d in res.docs) == {
+    mock = [d for d in res.docs if d.source == "mock"]  # the sample corpus is fixed; live runbooks may be added
+    assert len(mock) == 12
+    assert Counter(d.doc_type for d in mock) == {
         "error_log": 6, "historical_failure": 2, "data_quality": 1, "troubleshooting": 3,
     }
 
