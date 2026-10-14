@@ -1,0 +1,8 @@
+doc_id: RB-001
+doc_type: troubleshooting
+source: live
+title: Deliberate test failure in JOB-FAILURA
+---
+JOB-FAILURA is a test job that raises "Deliberate failure: Testing Databricks job error handling."
+This failure is intentional and used to test job error handling and alerting.
+No data fix is needed. Do not page anyone for this job.
