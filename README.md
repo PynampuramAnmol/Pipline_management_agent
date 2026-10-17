@@ -61,3 +61,12 @@ the env vars. Documents get a category with an optional `category:` header line.
 - Databricks result states other than SUCCESS/FAILED are mapped but unverified against real data.
 - The diagnostic documents are mock samples, not written about your real runs.
 - The chat/LLM path is unverified generation. Treat its output as hypotheses.
+
+## Resolution memory (RAG learning)
+
+On any incident, write how it was fixed and click **Mark resolved**. The note is saved as a document in `data/resolutions/` (git-ignored), embedded, and indexed. When a similar failure happens later, the Insights card shows "Similar failures marked resolved before" with the note.
+
+- `POST /api/report/{run_id}/resolve` body `{"note": "...", "category": "optional"}`
+- `GET|DELETE /api/report/{run_id}/resolution`
+- Cutoff: `RAG_RESOLUTION_MIN_SCORE` (default 0.60). Lower it if differently worded errors do not match.
+- Resolution docs omit `claim` and `run_id` on purpose, so they never conflict with run status.

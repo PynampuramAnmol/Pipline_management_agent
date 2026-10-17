@@ -1,6 +1,6 @@
-import { forwardRef } from 'react'
-import useSWR from 'swr'
-import { fetcher, downloadText } from '../lib/api.js'
+import { forwardRef, useState } from 'react'
+import useSWR, { useSWRConfig } from 'swr'
+import { fetcher, downloadText, resolveRun, unresolveRun } from '../lib/api.js'
 import { Card, CopyButton, EmptyState, Mono, Skeleton, StatusBadge } from './common.jsx'
 import { formatDuration, formatTime, isBad, statusTone } from '../lib/format.js'
 
@@ -252,6 +252,25 @@ function InsightsCard({ runId }) {
             )}
           </Field>
         </dl>
+        <h3 className="subhead">Similar failures marked resolved before</h3>
+        {data.resolutions?.length ? (
+          <ul className="ref-list">
+            {data.resolutions.map((r) => (
+              <li key={r.doc_id} className="ref-item">
+                <p className="ref-snippet ref-check">{r.note}</p>
+                <div className="muted small">
+                  Run <Mono>{r.run_id}</Mono>{r.job_name ? ` · ${r.job_name}` : ''}
+                  {r.resolved_at ? ` · resolved ${formatTime(r.resolved_at)}` : ''}
+                  {' · '}<Mono>score {Number(r.score).toFixed(3)}</Mono>
+                </div>
+                <div className="muted small">Original error: {r.error}</div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted small">No similar resolved failure on record.</p>
+        )}
+        <p className="muted small">Written by a person, not verified by the system. A fix that worked once may not apply here.</p>
         <h3 className="subhead">Suggested checks (quoted from runbooks)</h3>
         {data.checks?.length ? (
           <ul className="ref-list">
@@ -329,6 +348,116 @@ function ReferencesCard({ runId }) {
   )
 }
 
+function ResolveCard({ runId }) {
+  const { mutate } = useSWRConfig()
+  const key = runId ? `/api/report/${encodeURIComponent(runId)}/resolution` : null
+  const { data, error, isLoading, mutate: refresh } = useSWR(key, fetcher)
+  const [editing, setEditing] = useState(false)
+  const [note, setNote] = useState('')
+  const [category, setCategory] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState(null)
+  const current = data?.resolution
+
+  async function afterChange() {
+    await refresh()
+    // other runs' insights may now include this resolution
+    await mutate((k) => typeof k === 'string' && k.endsWith('/insights'))
+  }
+
+  async function onSave(e) {
+    e.preventDefault()
+    setBusy(true)
+    setProblem(null)
+    try {
+      await resolveRun(runId, { note, category: category.trim() || null })
+      setEditing(false)
+      await afterChange()
+    } catch (err) {
+      setProblem(err.unreachable ? 'Backend unreachable, is `python server.py` running?' : err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onRemove() {
+    setBusy(true)
+    setProblem(null)
+    try {
+      await unresolveRun(runId)
+      await afterChange()
+    } catch (err) {
+      setProblem(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function startEdit() {
+    setNote(current?.note || '')
+    setCategory(current?.category || '')
+    setEditing(true)
+  }
+
+  const showForm = editing || (!current && !isLoading && !error)
+
+  return (
+    <Card title="Resolution memory" className="report-card report-wide">
+      {error ? (
+        <p className="note">{error.unreachable ? 'Backend unreachable.' : `Could not load resolution: ${error.message}`}</p>
+      ) : isLoading ? (
+        <Skeleton height={48} />
+      ) : showForm ? (
+        <form onSubmit={onSave} className="resolve-form">
+          <label htmlFor="resolve-note" className="small muted">
+            How was this fixed? The note is saved with this error text, and shown on similar failures later.
+          </label>
+          <textarea
+            id="resolve-note"
+            className="resolve-note"
+            rows={3}
+            maxLength={2000}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="e.g. Granted SELECT on main.crm.customers to the job's service principal."
+            required
+          />
+          <div className="resolve-row">
+            <input
+              className="resolve-cat"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder="category (optional, e.g. permissions)"
+              pattern="[a-z][a-z0-9_]{1,29}"
+              title="lowercase letters, digits and underscores"
+              aria-label="Category (optional)"
+            />
+            <button type="submit" className="btn btn-sm" disabled={busy || !note.trim()}>
+              {busy ? 'Saving…' : 'Mark resolved'}
+            </button>
+            {editing && (
+              <button type="button" className="btn btn-sm btn-ghost" onClick={() => setEditing(false)}>Cancel</button>
+            )}
+          </div>
+        </form>
+      ) : (
+        <div>
+          <p className="ref-snippet ref-check">{current.note}</p>
+          <div className="muted small">
+            Resolved {current.resolved_at ? formatTime(current.resolved_at) : ''}
+            {current.category ? ` · category ${current.category}` : ''}
+          </div>
+          <div className="resolve-row">
+            <button type="button" className="btn btn-sm" onClick={startEdit} disabled={busy}>Edit</button>
+            <button type="button" className="btn btn-sm btn-ghost" onClick={onRemove} disabled={busy}>Remove</button>
+          </div>
+        </div>
+      )}
+      {problem && <div className="banner banner-error" role="alert">{problem}</div>}
+    </Card>
+  )
+}
+
 const IncidentReport = forwardRef(function IncidentReport({ runId, onClose }, ref) {
   const { data, error, isLoading } = useSWR(runId ? `/api/report/${encodeURIComponent(runId)}` : null, fetcher)
   const status = data?.run?.status || 'FAILED'
@@ -386,6 +515,7 @@ const IncidentReport = forwardRef(function IncidentReport({ runId, onClose }, re
           <HistoryCard history={data.history} />
           <InsightsCard runId={runId} />
           <ReferencesCard runId={runId} />
+          <ResolveCard runId={runId} />
         </div>
       )}
     </section>

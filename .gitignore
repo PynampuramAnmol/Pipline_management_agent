@@ -12,3 +12,4 @@ data/live/
 node_modules/
 dist/
 frontend/dist/
+data/resolutions/
