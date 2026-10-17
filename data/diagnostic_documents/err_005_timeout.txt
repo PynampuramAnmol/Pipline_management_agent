@@ -1,5 +1,6 @@
 doc_id: ERR-005
 doc_type: error_log
+category: timeout
 source: mock
 title: Daily sales aggregation timed out
 job_id: j_sales

@@ -13,7 +13,7 @@ VALID_DOC_TYPES = frozenset(
 VALID_SOURCES = frozenset({"mock", "live"})
 VALID_CLAIMS = frozenset({"resolved"})
 REQUIRED_KEYS = ("doc_id", "doc_type", "source")
-OPTIONAL_KEYS = ("title", "run_id", "job_id", "timestamp", "claim")
+OPTIONAL_KEYS = ("title", "run_id", "job_id", "timestamp", "claim", "category")
 SEPARATOR = "---"
 
 
@@ -29,6 +29,7 @@ class Document:
     timestamp: Optional[datetime] = None
     claim: Optional[str] = None
     origin: str = "<memory>"  # file name, for traceability
+    category: Optional[str] = None  # optional failure category, e.g. "permissions"
 
 
 @dataclass(frozen=True)
@@ -94,6 +95,7 @@ def parse_document(text: str, origin: str = "<memory>") -> Document:
         timestamp=_parse_time(header.get("timestamp")),
         claim=claim or None,
         origin=origin,
+        category=(header.get("category") or "").strip().lower() or None,
     )
 
 

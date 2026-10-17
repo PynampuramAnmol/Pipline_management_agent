@@ -1,5 +1,6 @@
 doc_id: ERR-004
 doc_type: error_log
+category: missing_object
 source: mock
 title: Cleaned orders table missing
 job_id: j_sales

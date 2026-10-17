@@ -206,13 +206,86 @@ function HistoryCard({ history }) {
 }
 
 
+function InsightsCard({ runId }) {
+  const { data, error, isLoading } = useSWR(
+    runId ? `/api/report/${encodeURIComponent(runId)}/insights` : null,
+    fetcher,
+  )
+  const body = () => {
+    if (error) {
+      return <p className="note">{error.unreachable ? 'Backend unreachable.' : `Could not load insights: ${error.message}`}</p>
+    }
+    if (isLoading || !data) {
+      return <div aria-busy="true"><Skeleton height={14} width="50%" /><Skeleton height={48} /></div>
+    }
+    if (data.status !== 'ok') {
+      return <EmptyState>{data.note || 'No insights available.'}</EmptyState>
+    }
+    return (
+      <>
+        <dl className="field-list">
+          <Field label="Category">
+            {data.category ? (
+              <span className="inline-gap">
+                <span className="chip">{String(data.category.value).replace(/_/g, ' ')}</span>
+                <span className="muted small">
+                  {data.category.basis === 'linked_document' ? 'document linked to this run' : 'by similarity'}
+                  {' · '}<Mono>{data.category.doc_id}</Mono>
+                  {' · '}<Mono>score {Number(data.category.score).toFixed(3)}</Mono>
+                </span>
+              </span>
+            ) : (
+              <span className="muted">Unclassified: no document matched above the cutoff</span>
+            )}
+          </Field>
+          <Field label="Novelty">
+            {data.novelty?.novel ? (
+              <span className="inline-gap">
+                <span className="chip chip-warn">new pattern</span>
+                <span className="muted small">{data.novelty.note}</span>
+              </span>
+            ) : (
+              <span className="muted">{data.novelty?.note || 'n/a'}</span>
+            )}
+            {data.novelty?.best_score != null && (
+              <span className="muted small mono"> best score {Number(data.novelty.best_score).toFixed(3)}</span>
+            )}
+          </Field>
+        </dl>
+        <h3 className="subhead">Suggested checks (quoted from runbooks)</h3>
+        {data.checks?.length ? (
+          <ul className="ref-list">
+            {data.checks.map((c) => (
+              <li key={`${c.doc_id}-${c.text}`} className="ref-item">
+                <p className="ref-snippet ref-check">{c.text}</p>
+                <div className="muted small">
+                  <Mono>{c.doc_id}</Mono> {c.title}
+                  {c.source === 'mock' ? ' · mock sample' : ''} · <Mono>score {Number(c.score).toFixed(3)}</Mono>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted small">No runbook matched above the cutoff.</p>
+        )}
+        <p className="muted small">{data.note}</p>
+      </>
+    )
+  }
+  return (
+    <Card title="RAG insights (retrieved, not a diagnosis)" className="report-card">
+      {body()}
+    </Card>
+  )
+}
+
 function ReferencesCard({ runId }) {
   const { data, error, isLoading } = useSWR(
     runId ? `/api/report/${encodeURIComponent(runId)}/references` : null,
     fetcher,
   )
   return (
-    <Card title="Similar past documents (retrieved, not a diagnosis)" className="report-card">
+    <Card title="Similar past documents (retrieved, not a diagnosis)" className="report-card report-wide">
       {error ? (
         <p className="note">
           {error.unreachable ? 'Backend unreachable.' : `Could not load reference documents: ${error.message}`}
@@ -311,6 +384,7 @@ const IncidentReport = forwardRef(function IncidentReport({ runId, onClose }, re
           <ReasonCard failure={data.failure} />
           <TasksCard tasks={data.tasks} skipped={data.skipped_tasks} />
           <HistoryCard history={data.history} />
+          <InsightsCard runId={runId} />
           <ReferencesCard runId={runId} />
         </div>
       )}

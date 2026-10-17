@@ -1,5 +1,6 @@
 doc_id: DQ-001
 doc_type: data_quality
+category: data_quality
 source: mock
 title: Null customer ids dropped by expectation
 timestamp: 2026-09-28T02:20:00+00:00

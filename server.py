@@ -36,6 +36,7 @@ from src.monitoring.models import ResultState, RunRecord
 from src.monitoring.stats import compute_stats
 from src.monitoring.queries import failed_runs, get_failed_runs, repeated_errors
 from src.reporting.brief_report import build_brief_report
+from src.reporting.insights import build_insights
 from src.reporting.references import find_references
 from src.reporting.incident_report import build_incident_report
 from src.retrieval.chunk_embeddings import EmbeddingCache, embed_chunks
@@ -242,6 +243,30 @@ def report_references(run_id: str):
         return find_references(search_pipeline, run.run_id, reason["reason"])
     except Exception as exc:
         return {"status": "unavailable", "items": [], "note": f"Retrieval failed: {exc}"}
+
+
+@app.get("/api/report/{run_id}/insights")
+def report_insights(run_id: str):
+    """RAG-driven category, suggested checks (quoted from runbooks) and novelty flag. Loads the model on first call."""
+    global search_pipeline
+    found = [r for r in runs_data if str(r.run_id) == str(run_id)]
+    if not found:
+        raise HTTPException(status_code=404, detail=f"Run ID '{run_id}' not found.")
+    run = found[0]
+    rep = build_brief_report(run, runs_data).to_dict()
+    unavailable = {"status": "unavailable", "category": None, "checks": [], "novelty": None}
+    if not rep["failure"]["reason_recorded"]:
+        return {"status": "no_error_text", "category": None, "checks": [], "novelty": None,
+                "note": "No error text was recorded, so nothing was searched."}
+    if search_pipeline is None:
+        search_pipeline = _build_search_pipeline(docs, runs_data)
+    if search_pipeline is None:
+        return {**unavailable, "note": "Retrieval pipeline could not be built (embedding model or documents missing)."}
+    try:
+        return build_insights(search_pipeline, docs, run.run_id, rep["failure"]["reason"],
+                              same_error_before=rep["history"]["same_error_before"])
+    except Exception as exc:
+        return {**unavailable, "note": f"Retrieval failed: {exc}"}
 
 
 # 3. Incident Report Generator Endpoint (long form, optional LLM)

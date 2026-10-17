@@ -92,3 +92,71 @@ def test_references_linked_and_similar():
     assert ids[0] == "A" and out["items"][0]["linked_to_run"] is True
     assert "B" in ids and "C" not in ids
     assert find_references(p, "r1", "")["status"] == "no_error_text"
+
+
+def _insight_pipeline():
+    from src.ingestion.chunker import chunk_documents
+    from src.ingestion.parser import Document
+    from src.retrieval.chunk_embeddings import embed_chunks
+    from src.retrieval.embeddings import HashingEmbedder
+    from src.retrieval.search import RetrievalPipeline
+    from src.retrieval.vector_index import VectorIndex
+
+    docs = [
+        Document(doc_id="E1", doc_type="error_log", source="mock", origin="a", title="Perm", run_id="r1",
+                 category="permissions", body="PERMISSION_DENIED principal lacks SELECT privilege on customers"),
+        Document(doc_id="T1", doc_type="troubleshooting", source="mock", origin="b", title="Perm runbook",
+                 category="permissions",
+                 body="Run SHOW GRANTS on the table to see privileges for the principal\nAsk the table owner to grant SELECT access"),
+        Document(doc_id="E2", doc_type="error_log", source="mock", origin="c", title="OOM", category="memory",
+                 body="out of memory during shuffle join executor killed"),
+    ]
+    e = HashingEmbedder(dim=2048)
+    chunks = chunk_documents(docs)
+    idx = VectorIndex(e.dim, e.model_name)
+    idx.add(chunks, embed_chunks(chunks, e))
+    return RetrievalPipeline(idx, e, known_run_ids=["r1"], min_score=0.15), docs
+
+
+TH = {"category_min_score": 0.3, "checks_min_score": 0.15, "novelty_max_score": 0.2}
+
+
+def test_insights_category_linked_and_checks_quoted():
+    from src.reporting.insights import build_insights
+    p, docs = _insight_pipeline()
+    out = build_insights(p, docs, "r1", "PERMISSION_DENIED: principal lacks SELECT privilege on customers", th=TH)
+    assert out["category"]["value"] == "permissions" and out["category"]["basis"] == "linked_document"
+    texts = [c["text"] for c in out["checks"]]
+    assert "Run SHOW GRANTS on the table to see privileges for the principal" in texts
+    assert all(c["doc_id"] == "T1" for c in out["checks"])
+    assert out["novelty"]["novel"] is False
+
+
+def test_insights_category_by_similarity_when_not_linked():
+    from src.reporting.insights import build_insights
+    p, docs = _insight_pipeline()
+    out = build_insights(p, docs, "other", "out of memory during shuffle join", th=TH)
+    assert out["category"]["value"] == "memory" and out["category"]["basis"] == "similarity"
+
+
+def test_insights_unclassified_and_novel_when_nothing_matches():
+    from src.reporting.insights import build_insights
+    p, docs = _insight_pipeline()
+    out = build_insights(p, docs, "other", "zzqx wibble frobnicate quux", th={**TH, "novelty_max_score": 0.9})
+    assert out["category"] is None and out["checks"] == []
+    assert out["novelty"]["novel"] is True
+
+
+def test_insights_not_novel_if_same_error_seen_before_and_empty_reason():
+    from src.reporting.insights import build_insights
+    p, docs = _insight_pipeline()
+    out = build_insights(p, docs, "other", "zzqx wibble frobnicate quux",
+                         same_error_before=1, th={**TH, "novelty_max_score": 0.9})
+    assert out["novelty"]["novel"] is False
+    assert build_insights(p, docs, "r1", "")["status"] == "no_error_text"
+
+
+def test_document_category_header_parses():
+    from src.ingestion.parser import parse_document
+    d = parse_document("doc_id: X\ndoc_type: error_log\nsource: mock\ncategory: Schema\n---\nbody here", "x.txt")
+    assert d.category == "schema"

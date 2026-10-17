@@ -1,14 +1,22 @@
 {
-  "note": "Labels written by hand from data/diagnostic_documents titles. Small set: a smoke check, not a benchmark.",
+  "note": "Hand-labelled from data/diagnostic_documents. 'expected' = doc ids that are relevant, 'category' = expected failure category. Negatives have no relevant document: the right answer is 'no match / unclassified'. Add your own real errors here. Small set: a smoke check, not a benchmark.",
   "queries": [
-    {"q": "permission denied when reading the customers table", "expected": ["ERR-002", "ERR-003", "TS-002"]},
-    {"q": "principal lacks SELECT privilege on customers", "expected": ["ERR-002", "ERR-003", "TS-002"]},
-    {"q": "column cannot be resolved in orders load", "expected": ["ERR-001", "HIST-002", "TS-001"]},
-    {"q": "source column was renamed upstream", "expected": ["HIST-002", "ERR-001", "TS-001"]},
-    {"q": "table or view not found for cleaned orders", "expected": ["ERR-004"]},
-    {"q": "daily sales aggregation exceeded timeout", "expected": ["ERR-005", "TS-003"]},
-    {"q": "out of memory during a join", "expected": ["ERR-006"]},
-    {"q": "service account could not create tables", "expected": ["HIST-001"]},
-    {"q": "null customer ids dropped by data quality expectation", "expected": ["DQ-001"]}
+    {"q": "permission denied when reading the customers table", "expected": ["ERR-002", "ERR-003", "TS-002"], "category": "permissions"},
+    {"q": "principal lacks SELECT privilege on customers", "expected": ["ERR-002", "ERR-003", "TS-002"], "category": "permissions"},
+    {"q": "column cannot be resolved in orders load", "expected": ["ERR-001", "HIST-002", "TS-001"], "category": "schema"},
+    {"q": "source column was renamed upstream", "expected": ["HIST-002", "ERR-001", "TS-001"], "category": "schema"},
+    {"q": "table or view not found for cleaned orders", "expected": ["ERR-004"], "category": "missing_object"},
+    {"q": "[TABLE_OR_VIEW_NOT_FOUND] The table or view `bronze`.`raw_customers` cannot be found. Verify the spelling and correctness of the schema and catalog.", "expected": ["ERR-004"], "category": "missing_object"},
+    {"q": "daily sales aggregation exceeded timeout", "expected": ["ERR-005", "TS-003"], "category": "timeout"},
+    {"q": "out of memory during a join", "expected": ["ERR-006"], "category": "memory"},
+    {"q": "service account could not create tables", "expected": ["HIST-001"], "category": "permissions"},
+    {"q": "null customer ids dropped by data quality expectation", "expected": ["DQ-001"], "category": "data_quality"}
+  ],
+  "negatives": [
+    {"q": "Exception: Deliberate failure: Testing Databricks job error handling."},
+    {"q": "ModuleNotFoundError: No module named 'pandas'"},
+    {"q": "Connection reset by peer while writing to cloud storage"},
+    {"q": "Quota exceeded: cannot create more clusters in this workspace"},
+    {"q": "NullPointerException in user defined function"}
   ]
 }

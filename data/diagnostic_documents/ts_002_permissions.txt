@@ -1,5 +1,6 @@
 doc_id: TS-002
 doc_type: troubleshooting
+category: permissions
 source: mock
 title: Investigating permission errors
 ---

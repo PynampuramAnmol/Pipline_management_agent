@@ -1,5 +1,6 @@
 doc_id: ERR-002
 doc_type: error_log
+category: permissions
 source: mock
 title: Permission denied reading customers table
 job_id: j_cust

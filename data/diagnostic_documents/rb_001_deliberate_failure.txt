@@ -1,5 +1,6 @@
 doc_id: RB-001
 doc_type: troubleshooting
+category: deliberate_test
 source: live
 title: Deliberate test failure in JOB-FAILURA
 ---

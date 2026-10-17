@@ -1673,3 +1673,6 @@ select {
 .ref-score { margin-left: auto; }
 .ref-snippet { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
 .chip-sample { opacity: .75; }
+
+.ref-check { color: var(--text, inherit); font-size: 14px; margin: 0 0 2px; }
+.chip-warn { color: var(--warn, #b45309); }
