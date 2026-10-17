@@ -1673,3 +1673,12 @@ select {
 .ref-score { margin-left: auto; }
 .ref-snippet { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
 .chip-sample { opacity: .75; }
+
+.ref-check { color: var(--text, inherit); font-size: 14px; margin: 0 0 2px; }
+.chip-warn { color: var(--warn, #b45309); }
+
+/* Resolution memory */
+.resolve-form { display: grid; gap: 8px; }
+.resolve-note { width: 100%; font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line, rgba(128,128,128,.35)); background: transparent; color: inherit; resize: vertical; }
+.resolve-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.resolve-cat { flex: 1 1 220px; font: inherit; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line, rgba(128,128,128,.35)); background: transparent; color: inherit; }

@@ -1,5 +1,6 @@
 doc_id: TS-003
 doc_type: troubleshooting
+category: timeout
 source: mock
 title: Investigating long runs and timeouts
 ---

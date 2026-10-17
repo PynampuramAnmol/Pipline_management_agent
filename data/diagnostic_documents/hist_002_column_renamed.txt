@@ -1,5 +1,6 @@
 doc_id: HIST-002
 doc_type: historical_failure
+category: schema
 source: mock
 title: Source column renamed upstream
 timestamp: 2026-07-18T00:00:00+00:00

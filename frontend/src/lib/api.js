@@ -66,3 +66,15 @@ export function downloadText(filename, text) {
   a.remove()
   URL.revokeObjectURL(url)
 }
+
+export function resolveRun(runId, body) {
+  return request(`/api/report/${encodeURIComponent(runId)}/resolve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
+
+export function unresolveRun(runId) {
+  return request(`/api/report/${encodeURIComponent(runId)}/resolution`, { method: 'DELETE' })
+}

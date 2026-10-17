@@ -36,7 +36,11 @@ from src.monitoring.models import ResultState, RunRecord
 from src.monitoring.stats import compute_stats
 from src.monitoring.queries import failed_runs, get_failed_runs, repeated_errors
 from src.reporting.brief_report import build_brief_report
+from src.reporting.insights import build_insights
 from src.reporting.references import find_references
+from src.reporting.resolutions import (
+    find_similar_resolutions, get_resolution, resolution_doc_id, save_resolution,
+)
 from src.reporting.incident_report import build_incident_report
 from src.retrieval.chunk_embeddings import EmbeddingCache, embed_chunks
 from src.retrieval.embeddings import load_embedder
@@ -108,6 +112,25 @@ def _build_search_pipeline(documents: list[Document], runs: list[RunRecord]) -> 
         return None
 
 
+RES_DIR = ROOT / "data" / "resolutions"
+
+
+def _load_all_docs() -> list[Document]:
+    """Diagnostic documents plus resolutions saved by people. Bad files are reported, never fatal."""
+    out: list[Document] = []
+    for d in (DOC_DIR, RES_DIR):
+        if not d.is_dir():
+            continue
+        try:
+            res = load_documents(d)
+            out.extend(res.docs)
+            for issue in res.issues:
+                print(f"Warning: document issue in {d.name}: {issue}", file=sys.stderr)
+        except Exception as exc:
+            print(f"Warning: Could not load documents from {d}: {exc}", file=sys.stderr)
+    return out
+
+
 def init_system(source: str = "live") -> None:
     global runs_data, docs, search_pipeline, llm_client
 
@@ -127,13 +150,8 @@ def init_system(source: str = "live") -> None:
         except Exception as exc:
             print(f"Warning: Could not load mock runs: {exc}", file=sys.stderr)
 
-    # 2. Ingest diagnostic documents
-    docs = []
-    if DOC_DIR.is_dir():
-        try:
-            docs = load_documents(DOC_DIR).docs
-        except Exception as exc:
-            print(f"Warning: Could not load documents: {exc}", file=sys.stderr)
+    # 2. Ingest diagnostic documents (+ saved resolutions)
+    docs = _load_all_docs()
 
     # 3. Retrieval pipeline is built lazily (only chat/LLM paths need it)
     search_pipeline = None
@@ -242,6 +260,89 @@ def report_references(run_id: str):
         return find_references(search_pipeline, run.run_id, reason["reason"])
     except Exception as exc:
         return {"status": "unavailable", "items": [], "note": f"Retrieval failed: {exc}"}
+
+
+@app.get("/api/report/{run_id}/insights")
+def report_insights(run_id: str):
+    """RAG-driven category, suggested checks (quoted from runbooks) and novelty flag. Loads the model on first call."""
+    global search_pipeline
+    found = [r for r in runs_data if str(r.run_id) == str(run_id)]
+    if not found:
+        raise HTTPException(status_code=404, detail=f"Run ID '{run_id}' not found.")
+    run = found[0]
+    rep = build_brief_report(run, runs_data).to_dict()
+    unavailable = {"status": "unavailable", "category": None, "checks": [], "novelty": None}
+    if not rep["failure"]["reason_recorded"]:
+        return {"status": "no_error_text", "category": None, "checks": [], "novelty": None,
+                "note": "No error text was recorded, so nothing was searched."}
+    if search_pipeline is None:
+        search_pipeline = _build_search_pipeline(docs, runs_data)
+    if search_pipeline is None:
+        return {**unavailable, "note": "Retrieval pipeline could not be built (embedding model or documents missing)."}
+    try:
+        out = build_insights(search_pipeline, docs, run.run_id, rep["failure"]["reason"],
+                             same_error_before=rep["history"]["same_error_before"])
+        out["resolutions"] = find_similar_resolutions(search_pipeline, docs, run.run_id, rep["failure"]["reason"])
+        return out
+    except Exception as exc:
+        return {**unavailable, "note": f"Retrieval failed: {exc}"}
+
+
+class ResolveRequest(BaseModel):
+    note: str
+    category: Optional[str] = None
+
+
+_BAD = {"FAILED", "TIMED_OUT", "CANCELLED"}
+
+
+def _find_run(run_id: str) -> RunRecord:
+    found = [r for r in runs_data if str(r.run_id) == str(run_id)]
+    if not found:
+        raise HTTPException(status_code=404, detail=f"Run ID '{run_id}' not found.")
+    return found[0]
+
+
+def _reload_docs() -> None:
+    """Re-read documents and drop the retrieval index so the next call re-embeds (cache makes it fast)."""
+    global docs, search_pipeline
+    docs = _load_all_docs()
+    search_pipeline = None
+
+
+@app.get("/api/report/{run_id}/resolution")
+def get_run_resolution(run_id: str):
+    _find_run(run_id)
+    return {"resolution": get_resolution(docs, str(run_id))}
+
+
+@app.post("/api/report/{run_id}/resolve")
+def resolve_run(run_id: str, req: ResolveRequest):
+    """Save a person's resolution note for a failed run as a document the RAG can retrieve later."""
+    run = _find_run(run_id)
+    if run.result_state.value not in _BAD:
+        raise HTTPException(status_code=400, detail="Only failed, timed-out or cancelled runs can be marked resolved.")
+    reason = build_brief_report(run).to_dict()["failure"]["reason"] if run.error_message or any(
+        t.error_message for t in run.tasks) else ""
+    try:
+        save_resolution(RES_DIR, run.run_id, run.job_id, run.job_name or "unnamed", reason, req.note, req.category)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    _reload_docs()
+    return {"resolution": get_resolution(docs, str(run.run_id))}
+
+
+@app.delete("/api/report/{run_id}/resolution")
+def unresolve_run(run_id: str):
+    run = _find_run(run_id)
+    try:
+        path = RES_DIR / f"{resolution_doc_id(run.run_id)}.txt"
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    if path.is_file():
+        path.unlink()
+        _reload_docs()
+    return {"resolution": None}
 
 
 # 3. Incident Report Generator Endpoint (long form, optional LLM)

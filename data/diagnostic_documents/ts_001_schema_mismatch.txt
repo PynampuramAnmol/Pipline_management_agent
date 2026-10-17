@@ -1,5 +1,6 @@
 doc_id: TS-001
 doc_type: troubleshooting
+category: schema
 source: mock
 title: Investigating schema mismatch and missing columns
 ---

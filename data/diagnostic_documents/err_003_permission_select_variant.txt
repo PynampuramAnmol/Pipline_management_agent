@@ -1,5 +1,6 @@
 doc_id: ERR-003
 doc_type: error_log
+category: permissions
 source: mock
 title: Principal lacks privilege on customers table
 job_id: j_cust

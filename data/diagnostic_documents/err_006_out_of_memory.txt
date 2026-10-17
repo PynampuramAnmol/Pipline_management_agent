@@ -1,5 +1,6 @@
 doc_id: ERR-006
 doc_type: error_log
+category: memory
 source: mock
 title: Out of memory during join
 timestamp: 2026-09-20T03:15:00+00:00

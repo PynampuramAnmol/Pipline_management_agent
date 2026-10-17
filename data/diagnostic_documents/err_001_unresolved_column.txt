@@ -1,5 +1,6 @@
 doc_id: ERR-001
 doc_type: error_log
+category: schema
 source: mock
 title: Unresolved column in orders load
 job_id: j_orders

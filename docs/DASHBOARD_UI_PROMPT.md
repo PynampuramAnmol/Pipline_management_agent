@@ -32,6 +32,13 @@ Show the health of every pipeline (Databricks job). When a run fails, clicking i
 { status:"ok"|"no_match"|"no_error_text"|"unavailable", note:string,
   items:[{doc_id,chunk_id,title,doc_type,source,score,linked_to_run,snippet}] }
 ```
+`GET /api/report/{run_id}/insights` (also slow on first call) returns:
+```
+{ status:"ok"|"no_error_text"|"unavailable", note:string, thresholds:{...},
+  category:{value,basis:"linked_document"|"similarity",doc_id,score}|null,
+  checks:[{text,doc_id,title,source,score}],
+  novelty:{novel:boolean,best_score:number|null,note:string}|null }
+```
 `POST /api/runs/refresh` pulls live data from Databricks (button: "Refresh from Databricks", show loading and error states).
 Statuses seen: SUCCESS, FAILED, TIMED_OUT, CANCELLED, SKIPPED, UNKNOWN. Treat FAILED/TIMED_OUT/CANCELLED as bad, UNKNOWN as neutral grey (not green).
 
@@ -48,6 +55,7 @@ Statuses seen: SUCCESS, FAILED, TIMED_OUT, CANCELLED, SKIPPED, UNKNOWN. Treat FA
    - **Task breakdown** table from `tasks` (task, state badge, attempts, duration, depends on); highlight failed rows; show "retried N times" for attempts > 1. List `skipped_tasks` under "Not run because of this failure".
    - **Job history** card: runs on record, succeeded vs failed, last success before this run, "same error seen before: N earlier runs" with the run IDs, and the other failures in this job.
    - **Reference documents** card (from the references endpoint): title "Similar past documents (retrieved, not a diagnosis)". One row per item: doc_id, title, doc_type chip, source chip (flag "mock" as sample data), score, a "linked to this run" badge when `linked_to_run`, and the snippet. Show `note` under the list. Handle status `no_match`, `no_error_text` and `unavailable` with a neutral message.
+   - **RAG insights** card (full width, above the reference documents): category chip with its basis ("document linked to this run" or "by similarity"), a "new pattern" warning chip when `novelty.novel`, and "Suggested checks (quoted from runbooks)" as a list with doc ID and score. If `category` is null show "Unclassified". Label the card "retrieved, not a diagnosis".
 7. Footer: show `note` from `/api/stats` (duration includes queue time).
 
 ## Rules

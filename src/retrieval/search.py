@@ -57,6 +57,14 @@ class RetrievalPipeline:
         self._min_score = min_score
         self._max_per_doc = max_per_doc
 
+    @property
+    def index(self) -> VectorIndex:
+        return self._index
+
+    @property
+    def embedder(self) -> Embedder:
+        return self._embedder
+
     def retrieve(
         self,
         question: str,
