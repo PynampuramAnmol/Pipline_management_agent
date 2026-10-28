@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from src.reporting.resolutions import PREFIX as RESOLUTION_PREFIX
 from src.retrieval.search import RetrievalPipeline
 
 
@@ -31,14 +32,15 @@ def find_references(
         return {"status": "no_error_text", "items": [],
                 "note": "No error text was recorded, so there is nothing to search with."}
     rep = pipeline.retrieve(f"run {run_id}", top_k=top_k, related_query=reason, min_score=min_score)
+    own = RESOLUTION_PREFIX + str(run_id)   # a run's own saved note is not a 'similar past document'
     items, seen = [], set()
     for hits in rep.run_evidence.values():
         for h in hits:
-            if h.chunk.chunk_id not in seen:
+            if h.chunk.chunk_id not in seen and h.chunk.doc_id != own:
                 seen.add(h.chunk.chunk_id)
                 items.append(_item(h, True))
     for h in rep.related.results:
-        if h.chunk.chunk_id not in seen:
+        if h.chunk.chunk_id not in seen and h.chunk.doc_id != own:
             seen.add(h.chunk.chunk_id)
             items.append(_item(h, False))
     return {

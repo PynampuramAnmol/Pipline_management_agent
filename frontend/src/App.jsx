@@ -4,6 +4,7 @@ import './style.css'
 import { fetcher, refreshFromDatabricks } from './lib/api.js'
 import Header from './components/Header.jsx'
 import KpiRow from './components/KpiRow.jsx'
+import RagStatusCard from './components/RagStatusCard.jsx'
 import Charts from './components/Charts.jsx'
 import PipelinesTable from './components/PipelinesTable.jsx'
 import RunsList from './components/RunsList.jsx'
@@ -108,7 +109,8 @@ function Dashboard() {
           </div>
         )}
 
-        <KpiRow overall={stats.data?.overall} loading={stats.isLoading} />
+        <KpiRow overall={stats.data?.overall} incidents={stats.data?.incidents} loading={stats.isLoading} />
+        <RagStatusCard />
         <Charts stats={stats.data} loading={stats.isLoading} />
         <PipelinesTable
           jobs={stats.data?.jobs}

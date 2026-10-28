@@ -1682,3 +1682,27 @@ select {
 .resolve-note { width: 100%; font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line, rgba(128,128,128,.35)); background: transparent; color: inherit; resize: vertical; }
 .resolve-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
 .resolve-cat { flex: 1 1 220px; font: inherit; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line, rgba(128,128,128,.35)); background: transparent; color: inherit; }
+
+/* Dashboard update: summary strip, timeline, recovery, RAG card, 6 KPIs */
+@media (min-width: 1024px) { .kpi-row { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; } }
+.summary-strip { display: grid; gap: 10px; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-flex; gap: 6px; align-items: baseline; padding: 6px 12px; border-radius: 999px; font-size: 13px;
+  border: 1px solid var(--line, rgba(128,128,128,.3)); background: var(--surface, transparent); }
+.chip b { font-weight: 600; opacity: .7; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.chip-ok { border-color: var(--ok); background: var(--ok-soft); }
+.chip-bad { border-color: var(--bad); background: var(--bad-soft); }
+.chip-warn { border-color: var(--warn); background: var(--warn-soft); }
+.resolved-banner { margin: 0; padding: 10px 14px; border-left: 3px solid var(--ok); background: var(--ok-soft); border-radius: 8px; font-size: 14px; }
+.recovered-line { margin: 8px 0 12px; padding: 8px 12px; border-left: 3px solid var(--ok); background: var(--ok-soft); border-radius: 8px; font-size: 13px; }
+.timeline { margin-bottom: 12px; }
+.timeline-track { list-style: none; margin: 0 0 6px; padding: 8px 4px 0; display: flex; gap: 14px; flex-wrap: wrap; }
+.tl-dot { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.tl-dot-mark { width: 14px; height: 14px; border-radius: 50%; background: var(--muted, #888); }
+.tl-ok .tl-dot-mark { background: var(--ok); }
+.tl-bad .tl-dot-mark { background: var(--bad); }
+.tl-current .tl-dot-mark { box-shadow: 0 0 0 3px var(--surface, #000), 0 0 0 5px var(--accent); }
+.tl-time { font-size: 10px; opacity: .65; font-family: ui-monospace, monospace; }
+.rag-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 8px; }
+.rag-stat-value { font-size: 26px; font-weight: 600; }
+.rag-stat-label { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; opacity: .7; }

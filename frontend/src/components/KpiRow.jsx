@@ -37,6 +37,8 @@ const ICONS = {
   failed: 'M12 8v5m0 3.5v.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z',
   avg: 'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
   max: 'M13 2 3 14h9l-1 8 10-12h-9l1-8Z',
+  open: 'M12 9v4m0 4h.01M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0Z',
+  heal: 'M3 12h4l3 7 4-14 3 7h4',
 }
 
 function KpiIcon({ name }) {
@@ -91,11 +93,11 @@ function Kpi({ label, icon, children, hint, tone, extra }) {
   )
 }
 
-export default function KpiRow({ overall, loading }) {
+export default function KpiRow({ overall, incidents, loading }) {
   if (loading) {
     return (
       <div className="kpi-row" aria-busy="true">
-        {Array.from({ length: 5 }, (_, i) => (
+        {Array.from({ length: 6 }, (_, i) => (
           <div className="kpi" key={i}>
             <Skeleton height={12} width="60%" />
             <Skeleton height={32} width="45%" />
@@ -108,6 +110,7 @@ export default function KpiRow({ overall, loading }) {
   if (!overall) return null
   const rate = normalizeRate(overall.success_rate, overall.succeeded, overall.runs)
   const failed = overall.failed ?? 0
+  const openCount = incidents?.open ?? 0
   return (
     <dl className="kpi-row" aria-label="Key metrics">
       <Kpi label="Total runs" icon="runs" hint="All runs on record">
@@ -130,11 +133,31 @@ export default function KpiRow({ overall, loading }) {
       >
         <AnimatedValue value={failed} format={formatNumber} integer />
       </Kpi>
-      <Kpi label="Avg duration" icon="avg" hint="Per run">
+      <Kpi
+        label="Open incidents"
+        icon="open"
+        tone={openCount > 0 ? 'bad' : 'ok'}
+        hint={openCount > 0 ? 'Latest run of the job is failing' : 'All jobs recovered'}
+      >
+        <AnimatedValue value={openCount} format={formatNumber} integer />
+      </Kpi>
+      <Kpi
+        label="Avg duration"
+        icon="avg"
+        hint={overall.max_duration_seconds != null ? `Longest ${formatDuration(overall.max_duration_seconds)}` : 'Per run'}
+      >
         <AnimatedValue value={overall.avg_duration_seconds} format={formatDuration} integer />
       </Kpi>
-      <Kpi label="Longest run" icon="max" hint="Max duration">
-        <AnimatedValue value={overall.max_duration_seconds} format={formatDuration} integer />
+      <Kpi
+        label="Time to recover"
+        icon="heal"
+        hint={incidents?.recovered ? `${incidents.recovered} recovered ${incidents.recovered === 1 ? 'incident' : 'incidents'}` : 'No recovery yet'}
+      >
+        {incidents?.avg_recovery_seconds != null ? (
+          <AnimatedValue value={incidents.avg_recovery_seconds} format={formatDuration} integer />
+        ) : (
+          <span className="muted">n/a</span>
+        )}
       </Kpi>
     </dl>
   )

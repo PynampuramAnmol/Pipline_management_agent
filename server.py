@@ -4,10 +4,8 @@ server.py - REST API bridge connecting Frontend (React/Lovable) to Databricks Mo
 
 from __future__ import annotations
 
-import asyncio
 import os
 import sys
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -38,10 +36,10 @@ from src.monitoring.models import ResultState, RunRecord
 from src.monitoring.stats import compute_stats
 from src.monitoring.queries import failed_runs, get_failed_runs, repeated_errors
 from src.reporting.brief_report import build_brief_report
-from src.reporting.insights import build_insights
+from src.reporting.insights import build_insights, thresholds
 from src.reporting.references import find_references
 from src.reporting.resolutions import (
-    find_similar_resolutions, get_resolution, resolution_doc_id, save_resolution,
+    find_similar_resolutions, get_resolution, resolution_doc_id, resolution_min_score, save_resolution,
 )
 from src.reporting.incident_report import build_incident_report
 from src.retrieval.chunk_embeddings import EmbeddingCache, embed_chunks
@@ -74,8 +72,6 @@ runs_data: list[RunRecord] = []
 docs: list[Document] = []
 search_pipeline: Optional[RetrievalPipeline] = None
 llm_client = None
-_embedder = None  # pre-warmed at startup
-_thread_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="rag-worker")
 
 
 def _format_run(r: RunRecord) -> dict[str, Any]:
@@ -100,18 +96,14 @@ def _build_search_pipeline(documents: list[Document], runs: list[RunRecord]) -> 
     if not documents or not runs:
         return None
     try:
-        global _embedder
-        embedder = _embedder or load_embedder()
+        embedder = load_embedder()
         chunks = [c for d in documents for c in chunk_document(d)]
         try:
             cache = EmbeddingCache.load(CACHE_PATH, embedder.model_name, embedder.dim)
         except Exception:
             cache = EmbeddingCache(embedder.model_name, embedder.dim)
         vectors = embed_chunks(chunks, embedder, cache)
-        try:
-            cache.save(CACHE_PATH)
-        except Exception as exc:
-            print(f"Warning: Could not save embedding cache: {exc}", file=sys.stderr)
+        cache.save(CACHE_PATH)
         index = VectorIndex(embedder.dim, embedder.model_name)
         index.add(chunks, vectors)
         return RetrievalPipeline(index, embedder, known_run_ids=[r.run_id for r in runs], min_score=0.5)
@@ -172,18 +164,9 @@ def init_system(source: str = "live") -> None:
 
 
 @app.on_event("startup")
-async def startup_event():
-    global _embedder
+def startup_event():
     init_system("live")
-    # Pre-warm the embedding model in the background so the first RAG
-    # request doesn't block the event loop for 30+ seconds.
-    loop = asyncio.get_event_loop()
-    try:
-        _embedder = await loop.run_in_executor(_thread_pool, load_embedder)
-        print("Embedding model pre-warmed successfully.", flush=True)
-    except Exception as exc:
-        print(f"Warning: Could not pre-warm embedding model: {exc}", file=sys.stderr)
-    print("Backend initialized successfully!", flush=True)
+    print("Backend initialized successfully!")
 
 
 # --- ENDPOINTS ---
@@ -258,7 +241,7 @@ def brief_report(run_id: str):
 
 
 @app.get("/api/report/{run_id}/references")
-async def report_references(run_id: str):
+def report_references(run_id: str):
     """Custom-RAG reference docs for a run's recorded error. Loads the embedding model on first call."""
     global search_pipeline
     found = [r for r in runs_data if str(r.run_id) == str(run_id)]
@@ -269,10 +252,7 @@ async def report_references(run_id: str):
     if not reason["reason_recorded"]:
         return find_references(None, run.run_id, "")  # pipeline unused when no error text
     if search_pipeline is None:
-        loop = asyncio.get_event_loop()
-        search_pipeline = await loop.run_in_executor(
-            _thread_pool, _build_search_pipeline, docs, runs_data
-        )
+        search_pipeline = _build_search_pipeline(docs, runs_data)
     if search_pipeline is None:
         return {"status": "unavailable", "items": [],
                 "note": "Retrieval pipeline could not be built (embedding model or documents missing)."}
@@ -283,7 +263,7 @@ async def report_references(run_id: str):
 
 
 @app.get("/api/report/{run_id}/insights")
-async def report_insights(run_id: str):
+def report_insights(run_id: str):
     """RAG-driven category, suggested checks (quoted from runbooks) and novelty flag. Loads the model on first call."""
     global search_pipeline
     found = [r for r in runs_data if str(r.run_id) == str(run_id)]
@@ -296,25 +276,50 @@ async def report_insights(run_id: str):
         return {"status": "no_error_text", "category": None, "checks": [], "novelty": None,
                 "note": "No error text was recorded, so nothing was searched."}
     if search_pipeline is None:
-        loop = asyncio.get_event_loop()
-        search_pipeline = await loop.run_in_executor(
-            _thread_pool, _build_search_pipeline, docs, runs_data
-        )
+        search_pipeline = _build_search_pipeline(docs, runs_data)
     if search_pipeline is None:
         return {**unavailable, "note": "Retrieval pipeline could not be built (embedding model or documents missing)."}
     try:
-        loop = asyncio.get_event_loop()
-        out = await loop.run_in_executor(
-            _thread_pool,
-            lambda: build_insights(
-                search_pipeline, docs, run.run_id, rep["failure"]["reason"],
-                same_error_before=rep["history"]["same_error_before"]
-            )
-        )
+        out = build_insights(search_pipeline, docs, run.run_id, rep["failure"]["reason"],
+                             same_error_before=rep["history"]["same_error_before"])
         out["resolutions"] = find_similar_resolutions(search_pipeline, docs, run.run_id, rep["failure"]["reason"])
         return out
     except Exception as exc:
         return {**unavailable, "note": f"Retrieval failed: {exc}"}
+
+
+@app.get("/api/rag/status")
+def rag_status():
+    """What the RAG knows: documents, chunks, saved fixes, and how many failed runs already have a fix on record."""
+    global search_pipeline
+    res_docs = [d for d in docs if d.doc_id.startswith("RES-")]
+    by_type: dict[str, int] = {}
+    for d in docs:
+        by_type[d.doc_type] = by_type.get(d.doc_type, 0) + 1
+    failed = [r for r in runs_data if r.result_state.value in _BAD]
+    out = {
+        "documents": len(docs), "by_type": by_type, "resolutions": len(res_docs),
+        "failed_runs": len(failed), "failed_with_fix": None, "chunks": None, "model": None, "status": "ok",
+        "thresholds": {**thresholds(), "resolution_min_score": resolution_min_score()},
+    }
+    if search_pipeline is None:
+        search_pipeline = _build_search_pipeline(docs, runs_data)
+    if search_pipeline is None:
+        return {**out, "status": "unavailable"}
+    out["chunks"] = search_pipeline.index.size
+    out["model"] = search_pipeline.index.model_name
+    known = 0
+    try:
+        for r in failed[:100]:
+            reason = build_brief_report(r).to_dict()["failure"]
+            if get_resolution(docs, str(r.run_id)) or (
+                    reason["reason_recorded"]
+                    and find_similar_resolutions(search_pipeline, docs, r.run_id, reason["reason"])):
+                known += 1
+        out["failed_with_fix"] = known
+    except Exception:
+        out["status"] = "partial"
+    return out
 
 
 class ResolveRequest(BaseModel):

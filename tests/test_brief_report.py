@@ -160,3 +160,56 @@ def test_document_category_header_parses():
     from src.ingestion.parser import parse_document
     d = parse_document("doc_id: X\ndoc_type: error_log\nsource: mock\ncategory: Schema\n---\nbody here", "x.txt")
     assert d.category == "schema"
+
+
+# ---- recovery, timeline, incidents, self-match, category-filtered checks (added with the dashboard update)
+def _mk(rid, state, start, job="J1"):
+    from datetime import datetime, timedelta, timezone
+    from src.monitoring.models import ResultState, RunRecord
+    t0 = datetime(2026, 10, 28, 11, 0, tzinfo=timezone.utc) + timedelta(minutes=start)
+    return RunRecord(run_id=rid, job_id=job, job_name=job, result_state=state, lifecycle_state="TERMINATED",
+                     start_time=t0, end_time=t0 + timedelta(seconds=30), error_message="boom" if state is not ResultState.SUCCESS else None,
+                     tasks=[], source="live")
+
+
+def test_recovered_by_and_timeline():
+    from src.monitoring.models import ResultState as S
+    a, b, c = _mk("1", S.FAILED, 0), _mk("2", S.FAILED, 1), _mk("3", S.SUCCESS, 45)
+    h = build_brief_report(b, [a, b, c]).to_dict()["history"]
+    assert h["recovered_by"]["run_id"] == "3" and h["recovered_by"]["after_seconds"] == 44 * 60
+    assert [x["run_id"] for x in h["timeline"]] == ["1", "2", "3"]
+    assert [x["current"] for x in h["timeline"]] == [False, True, False]
+    assert build_brief_report(c, [a, b, c]).to_dict()["history"]["recovered_by"] is None
+
+
+def test_incident_stats_open_and_recovered():
+    from src.monitoring.models import ResultState as S
+    from src.monitoring.stats import compute_stats
+    runs = [_mk("1", S.FAILED, 0), _mk("2", S.FAILED, 1), _mk("3", S.SUCCESS, 45),
+            _mk("4", S.SUCCESS, 0, job="J2"), _mk("5", S.FAILED, 10, job="J2")]
+    inc = compute_stats(runs)["incidents"]
+    assert inc["open"] == 1 and inc["open_jobs"][0]["job_id"] == "J2"
+    assert inc["recovered"] == 1 and inc["avg_recovery_seconds"] == 45 * 60
+
+
+def test_own_resolution_is_not_a_similar_document_or_novelty_score():
+    from src.ingestion.parser import parse_document
+    from src.reporting.insights import build_insights
+    from src.reporting.references import find_references
+    from src.retrieval.chunk_embeddings import embed_chunks
+    from src.retrieval.embeddings import HashingEmbedder
+    from src.retrieval.search import RetrievalPipeline
+    from src.retrieval.vector_index import VectorIndex
+    from src.ingestion.chunker import chunk_documents
+    err = "table orders_clean not found in schema sales"
+    docs = [parse_document("doc_id: RES-77\ndoc_type: historical_failure\nsource: live\ncategory: missing_object\n---\n" + err + "\nResolution note:\nfixed"),
+            parse_document("doc_id: TS-9\ndoc_type: troubleshooting\ncategory: permissions\nsource: mock\n---\ngrant select on table")]
+    e = HashingEmbedder(dim=2048); ch = chunk_documents(docs)
+    idx = VectorIndex(e.dim, e.model_name); idx.add(ch, embed_chunks(ch, e))
+    pl = RetrievalPipeline(idx, e, known_run_ids=["77"], min_score=0.1)
+    ins = build_insights(pl, docs, "77", err, th={"category_min_score": 0.3, "checks_min_score": 0.0, "novelty_max_score": 0.45})
+    assert ins["category"] is None or ins["category"]["doc_id"] != "RES-77"
+    assert all(i["doc_id"] != "RES-77" for i in find_references(pl, "77", err)["items"])
+    # category known elsewhere -> checks from a different category are not shown
+    ins2 = build_insights(pl, docs, "78", err, th={"category_min_score": 0.3, "checks_min_score": 0.0, "novelty_max_score": 0.45})
+    assert ins2["category"]["value"] == "missing_object" and ins2["checks"] == [] and ins2["checks_note"]
