@@ -1,0 +1,10 @@
+doc_id: TS-004
+doc_type: troubleshooting
+category: missing_object
+source: mock
+title: Investigating missing tables and views
+---
+For TABLE_OR_VIEW_NOT_FOUND errors, check that the table name is spelled correctly and fully qualified as catalog.schema.table.
+Run SHOW TABLES IN catalog.schema to confirm the table exists.
+Check that the upstream job that creates this table ran successfully before this run.
+Look for stray or unfinished code in the notebook, such as text left after the last cell, that stops the table from being created.

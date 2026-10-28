@@ -4,10 +4,12 @@ import './style.css'
 import { fetcher, refreshFromDatabricks } from './lib/api.js'
 import Header from './components/Header.jsx'
 import KpiRow from './components/KpiRow.jsx'
+import RagStatusCard from './components/RagStatusCard.jsx'
 import Charts from './components/Charts.jsx'
 import PipelinesTable from './components/PipelinesTable.jsx'
 import RunsList from './components/RunsList.jsx'
 import IncidentReport from './components/IncidentReport.jsx'
+import SampleDataPipeline from './components/SampleDataPipeline.jsx'
 
 function scrollBehavior() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
@@ -24,6 +26,7 @@ function Dashboard() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [jobFilter, setJobFilter] = useState(null)
   const [selectedRunId, setSelectedRunId] = useState(null)
+  const [showSamplePipeline, setShowSamplePipeline] = useState(false)
 
   const [theme, setTheme] = useState('dark')
 
@@ -87,6 +90,11 @@ function Dashboard() {
   const error = stats.error || runs.error
   const source = runs.data?.runs?.[0]?.source
 
+  async function onSampleDataApplied() {
+    markRefreshed()
+    await Promise.all([stats.mutate(), runs.mutate()])
+  }
+
   return (
     <div className="app">
       <Header
@@ -97,6 +105,8 @@ function Dashboard() {
         onRefresh={onRefresh}
         theme={theme}
         onToggleTheme={onToggleTheme}
+        showSamplePipeline={showSamplePipeline}
+        onToggleSamplePipeline={() => setShowSamplePipeline((prev) => !prev)}
       />
 
       <main className="main">
@@ -108,7 +118,15 @@ function Dashboard() {
           </div>
         )}
 
-        <KpiRow overall={stats.data?.overall} loading={stats.isLoading} />
+        {showSamplePipeline && (
+          <SampleDataPipeline
+            onApplied={onSampleDataApplied}
+            onClose={() => setShowSamplePipeline(false)}
+          />
+        )}
+
+        <KpiRow overall={stats.data?.overall} incidents={stats.data?.incidents} loading={stats.isLoading} />
+        <RagStatusCard />
         <Charts stats={stats.data} loading={stats.isLoading} />
         <PipelinesTable
           jobs={stats.data?.jobs}

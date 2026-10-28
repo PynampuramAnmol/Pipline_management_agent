@@ -143,6 +143,70 @@ function TasksCard({ tasks, skipped }) {
   )
 }
 
+function formatGap(sec) {
+  if (sec == null) return ''
+  const m = Math.round(sec / 60)
+  if (m < 1) return 'under a minute'
+  if (m < 120) return `${m} min`
+  return `${(m / 60).toFixed(1)} h`
+}
+
+function Timeline({ items }) {
+  if (!items || items.length < 2) return null
+  return (
+    <div className="timeline" role="img" aria-label="Run history of this job, oldest first">
+      <ol className="timeline-track">
+        {items.map((t) => (
+          <li key={t.run_id} className={`tl-dot tl-${isBad(t.status) ? 'bad' : t.status === 'SUCCESS' ? 'ok' : 'other'} ${t.current ? 'tl-current' : ''}`}
+              title={`${t.run_id} · ${t.status}${t.started ? ' · ' + formatTime(t.started) : ''}${t.duration_seconds != null ? ' · ' + formatDuration(t.duration_seconds) : ''}`}>
+            <span className="tl-dot-mark" />
+            <span className="tl-time">{t.started ? formatTime(t.started).replace(/^[A-Za-z]{3} \d+, \d{4},? /, '') : ''}</span>
+          </li>
+        ))}
+      </ol>
+      <div className="muted small">Oldest to newest. Ring marks this run.</div>
+    </div>
+  )
+}
+
+function SummaryStrip({ runId, report }) {
+  const ins = useSWR(`/api/report/${encodeURIComponent(runId)}/insights`, fetcher)
+  const own = useSWR(`/api/report/${encodeURIComponent(runId)}/resolution`, fetcher)
+  const h = report.history || {}
+  const failed = isBad(report.run?.status)
+  const resolution = own.data?.resolution
+  const similar = ins.data?.resolutions || []
+  const state = !failed ? { label: 'Succeeded', tone: 'ok' }
+    : resolution ? { label: 'Resolved', tone: 'ok' }
+    : h.recovered_by ? { label: 'Recovered, not annotated', tone: 'warn' }
+    : { label: 'Open', tone: 'bad' }
+  const cat = ins.data?.category?.value
+  const seen = (h.same_error_before || 0) + 1
+  return (
+    <div className="summary-strip report-wide">
+      <div className="chip-row">
+        <span className={`chip chip-${state.tone}`}><b>Status</b> {state.label}</span>
+        <span className="chip"><b>Category</b> {ins.isLoading ? '…' : cat ? cat.replace('_', ' ') : 'unknown'}</span>
+        <span className="chip"><b>Seen</b> {seen} {seen === 1 ? 'time' : 'times'} in this job</span>
+        <span className={`chip chip-${resolution || similar.length ? 'ok' : ''}`}>
+          <b>Fix on record</b> {resolution ? 'yes, this run' : similar.length ? `yes, ${similar.length} similar` : 'no'}
+        </span>
+        {h.recovered_by && <span className="chip chip-ok"><b>Recovered</b> after {formatGap(h.recovered_by.after_seconds)}</span>}
+      </div>
+      {resolution && (
+        <p className="resolved-banner">
+          <b>Fixed by:</b> {resolution.note}
+        </p>
+      )}
+      {!resolution && similar[0] && (
+        <p className="resolved-banner">
+          <b>A similar failure (run {similar[0].run_id}) was fixed by:</b> {similar[0].note}
+        </p>
+      )}
+    </div>
+  )
+}
+
 function HistoryCard({ history }) {
   if (!history) {
     return (
@@ -152,9 +216,16 @@ function HistoryCard({ history }) {
     )
   }
   const sameIds = history.same_error_run_ids || []
+  const rec = history.recovered_by
   const others = history.other_failures || []
   return (
     <Card title="Job history" className="report-card">
+      <Timeline items={history.timeline} />
+      {rec && (
+        <p className="recovered-line">
+          Recovered: run <Mono>{rec.run_id}</Mono> succeeded at {formatTime(rec.started)}, {formatGap(rec.after_seconds)} after this failure.
+        </p>
+      )}
       <dl className="field-list">
         <Field label="Runs on record"><Mono>{history.runs ?? 'n/a'}</Mono></Field>
         <Field label="Succeeded / failed">
@@ -285,7 +356,7 @@ function InsightsCard({ runId }) {
             ))}
           </ul>
         ) : (
-          <p className="muted small">No runbook matched above the cutoff.</p>
+          <p className="muted small">{data.checks_note || 'No runbook matched above the cutoff.'}</p>
         )}
         <p className="muted small">{data.note}</p>
       </>
@@ -509,6 +580,7 @@ const IncidentReport = forwardRef(function IncidentReport({ runId, onClose }, re
         </div>
       ) : (
         <div className="report-grid">
+          <SummaryStrip runId={runId} report={data} />
           <JobCard job={data.job} run={data.run} />
           <ReasonCard failure={data.failure} />
           <TasksCard tasks={data.tasks} skipped={data.skipped_tasks} />

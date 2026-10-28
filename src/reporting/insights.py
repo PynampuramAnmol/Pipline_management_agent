@@ -16,6 +16,7 @@ from typing import Mapping, Optional, Sequence
 import numpy as np
 
 from src.ingestion.parser import Document
+from src.reporting.resolutions import PREFIX as RESOLUTION_PREFIX
 from src.retrieval.search import RetrievalPipeline
 
 
@@ -29,7 +30,7 @@ def _env(name: str, default: float) -> float:
 def thresholds() -> dict:
     return {
         "category_min_score": _env("RAG_CATEGORY_MIN_SCORE", 0.60),
-        "checks_min_score": _env("RAG_CHECKS_MIN_SCORE", 0.50),
+        "checks_min_score": _env("RAG_CHECKS_MIN_SCORE", 0.55),
         "novelty_max_score": _env("RAG_NOVELTY_MAX_SCORE", 0.45),
     }
 
@@ -59,7 +60,8 @@ def build_insights(
                 "note": "Error text has no searchable content."}
 
     cat_of = {d.doc_id: d.category for d in docs if d.category}
-    ranked = index.search(qvec, top_k=10)
+    own = RESOLUTION_PREFIX + str(run_id)   # this run's own saved note must never count as 'similar'
+    ranked = [h for h in index.search(qvec, top_k=11) if h.chunk.doc_id != own][:10]
     best = ranked[0].score if ranked else None
 
     # category: documents linked to this run by metadata first (a recorded fact), else similarity
@@ -78,14 +80,26 @@ def build_insights(
                             "doc_id": h.chunk.doc_id, "score": round(h.score, 3)}
                 break
 
-    # suggested checks: quoted lines from matching troubleshooting runbooks
-    checks, seen = [], set()
-    for h in index.search(qvec, top_k=4, doc_type="troubleshooting", min_score=t["checks_min_score"]):
+    # suggested checks: quoted lines from troubleshooting runbooks. When the category is known, only runbooks of the
+    # SAME category are used, so a missing-table error never shows permission advice.
+    checks, seen, checks_note = [], set(), None
+    want = category["value"] if category else None
+    for h in index.search(qvec, top_k=8, doc_type="troubleshooting", min_score=t["checks_min_score"]):
+        if want and cat_of.get(h.chunk.doc_id) != want:
+            continue
         for ln in _lines(h.chunk.text):
             if ln not in seen and len(checks) < max_checks:
                 seen.add(ln)
                 checks.append({"text": ln, "doc_id": h.chunk.doc_id, "title": h.chunk.title or h.chunk.doc_id,
                                "source": h.chunk.source, "score": round(h.score, 3)})
+    if not checks:
+        has_book = want and any(d.doc_type == "troubleshooting" and d.category == want for d in docs)
+        if want and has_book:
+            checks_note = f"A '{want}' runbook exists but did not match this error closely enough."
+        elif want:
+            checks_note = f"No runbook on record for category '{want}'. Add one to data/diagnostic_documents/."
+        else:
+            checks_note = "No runbook matched this error closely enough."
 
     # novelty: nothing close in the corpus AND the exact error was not seen in earlier runs of this job
     novel = best is not None and best < t["novelty_max_score"] and same_error_before == 0
@@ -96,7 +110,8 @@ def build_insights(
                  else "Similar documents or earlier runs exist."),
     }
     return {
-        "status": "ok", "thresholds": t, "category": category, "checks": checks, "novelty": novelty,
+        "status": "ok", "thresholds": t, "category": category, "checks": checks, "checks_note": checks_note,
+        "novelty": novelty,
         "note": "Reference only: read off retrieved documents, not a diagnosis of this run. "
                 "Thresholds are provisional. Mock-source documents are samples.",
     }

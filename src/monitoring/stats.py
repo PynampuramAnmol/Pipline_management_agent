@@ -65,8 +65,31 @@ def compute_stats(runs: Sequence[RunRecord], recent: int = 10) -> dict:
     for r in runs:
         states[r.result_state.value] += 1
 
+    # incidents: a streak of bad runs of one job. Open = the job's latest run is still bad.
+    # Recovered = a SUCCESS followed; time to recover = first bad run's start -> that success's start.
+    open_jobs, recoveries = [], []
+    for jid, rs in by_job.items():
+        rs = sorted(rs, key=_key)
+        streak_start = None
+        for r in rs:
+            if r.result_state in BAD:
+                if streak_start is None:
+                    streak_start = r
+            elif r.result_state is ResultState.SUCCESS:
+                if streak_start is not None and streak_start.start_time and r.start_time:
+                    recoveries.append((r.start_time - streak_start.start_time).total_seconds())
+                streak_start = None
+        if streak_start is not None:
+            open_jobs.append({"job_id": jid, "job_name": rs[-1].job_name or "unnamed",
+                              "since": streak_start.start_time.isoformat() if streak_start.start_time else None})
+    incidents = {
+        "open": len(open_jobs), "open_jobs": open_jobs, "recovered": len(recoveries),
+        "avg_recovery_seconds": round(sum(recoveries) / len(recoveries), 1) if recoveries else None,
+    }
+
     return {
         "overall": block(list(runs)),
+        "incidents": incidents,
         "by_state": dict(states),
         "jobs": jobs,
         "daily": [{"date": d, **v} for d, v in sorted(daily.items())],

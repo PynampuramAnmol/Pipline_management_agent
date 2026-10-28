@@ -100,11 +100,23 @@ def build_brief_report(run: RunRecord, all_runs: Sequence[RunRecord] = ()) -> Br
     prior_ok = [r for r in succ if r.start_time is not None and run.start_time is not None
                 and r.start_time < run.start_time]
     last_ok = prior_ok[-1] if prior_ok else None  # last success BEFORE this run
+    later_ok = [r for r in succ if r.start_time is not None and run.start_time is not None
+                and r.start_time > run.start_time]
+    first_later = later_ok[0] if later_ok else None  # first success AFTER this run: the job recovered
     history = {
         "runs": len(same_job),
         "succeeded": len(succ),
         "failed": sum(1 for r in same_job if r.result_state in BAD_STATES),
         "last_success": {"run_id": last_ok.run_id, "started": fmt_time(last_ok.start_time)} if last_ok else None,
+        "recovered_by": ({"run_id": first_later.run_id, "started": fmt_time(first_later.start_time),
+                          "after_seconds": round((first_later.start_time - run.start_time).total_seconds())}
+                         if first_later and run.result_state in BAD_STATES else None),
+        "timeline": [
+            {"run_id": r.run_id, "status": r.result_state.value,
+             "started": r.start_time.isoformat() if r.start_time else None,
+             "duration_seconds": r.duration_seconds, "current": r.run_id == run.run_id}
+            for r in same_job
+        ],
         "same_error_before": len(same_err),
         "same_error_run_ids": [r.run_id for r in same_err],
         "other_failures": [

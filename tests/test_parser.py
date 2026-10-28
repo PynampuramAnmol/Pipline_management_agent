@@ -105,9 +105,9 @@ def test_real_corpus_loads_clean():
     res = load_documents(DOCS)
     assert res.issues == []
     mock = [d for d in res.docs if d.source == "mock"]  # the sample corpus is fixed; live runbooks may be added
-    assert len(mock) == 12
+    assert len(mock) == 13
     assert Counter(d.doc_type for d in mock) == {
-        "error_log": 6, "historical_failure": 2, "data_quality": 1, "troubleshooting": 3,
+        "error_log": 6, "historical_failure": 2, "data_quality": 1, "troubleshooting": 4,
     }
 
 
