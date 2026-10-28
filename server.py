@@ -4,8 +4,10 @@ server.py - REST API bridge connecting Frontend (React/Lovable) to Databricks Mo
 
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -72,6 +74,8 @@ runs_data: list[RunRecord] = []
 docs: list[Document] = []
 search_pipeline: Optional[RetrievalPipeline] = None
 llm_client = None
+_embedder = None  # pre-warmed at startup
+_thread_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="rag-worker")
 
 
 def _format_run(r: RunRecord) -> dict[str, Any]:
@@ -96,14 +100,18 @@ def _build_search_pipeline(documents: list[Document], runs: list[RunRecord]) -> 
     if not documents or not runs:
         return None
     try:
-        embedder = load_embedder()
+        global _embedder
+        embedder = _embedder or load_embedder()
         chunks = [c for d in documents for c in chunk_document(d)]
         try:
             cache = EmbeddingCache.load(CACHE_PATH, embedder.model_name, embedder.dim)
         except Exception:
             cache = EmbeddingCache(embedder.model_name, embedder.dim)
         vectors = embed_chunks(chunks, embedder, cache)
-        cache.save(CACHE_PATH)
+        try:
+            cache.save(CACHE_PATH)
+        except Exception as exc:
+            print(f"Warning: Could not save embedding cache: {exc}", file=sys.stderr)
         index = VectorIndex(embedder.dim, embedder.model_name)
         index.add(chunks, vectors)
         return RetrievalPipeline(index, embedder, known_run_ids=[r.run_id for r in runs], min_score=0.5)
@@ -164,9 +172,18 @@ def init_system(source: str = "live") -> None:
 
 
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
+    global _embedder
     init_system("live")
-    print("Backend initialized successfully!")
+    # Pre-warm the embedding model in the background so the first RAG
+    # request doesn't block the event loop for 30+ seconds.
+    loop = asyncio.get_event_loop()
+    try:
+        _embedder = await loop.run_in_executor(_thread_pool, load_embedder)
+        print("Embedding model pre-warmed successfully.", flush=True)
+    except Exception as exc:
+        print(f"Warning: Could not pre-warm embedding model: {exc}", file=sys.stderr)
+    print("Backend initialized successfully!", flush=True)
 
 
 # --- ENDPOINTS ---
@@ -241,7 +258,7 @@ def brief_report(run_id: str):
 
 
 @app.get("/api/report/{run_id}/references")
-def report_references(run_id: str):
+async def report_references(run_id: str):
     """Custom-RAG reference docs for a run's recorded error. Loads the embedding model on first call."""
     global search_pipeline
     found = [r for r in runs_data if str(r.run_id) == str(run_id)]
@@ -252,7 +269,10 @@ def report_references(run_id: str):
     if not reason["reason_recorded"]:
         return find_references(None, run.run_id, "")  # pipeline unused when no error text
     if search_pipeline is None:
-        search_pipeline = _build_search_pipeline(docs, runs_data)
+        loop = asyncio.get_event_loop()
+        search_pipeline = await loop.run_in_executor(
+            _thread_pool, _build_search_pipeline, docs, runs_data
+        )
     if search_pipeline is None:
         return {"status": "unavailable", "items": [],
                 "note": "Retrieval pipeline could not be built (embedding model or documents missing)."}
@@ -263,7 +283,7 @@ def report_references(run_id: str):
 
 
 @app.get("/api/report/{run_id}/insights")
-def report_insights(run_id: str):
+async def report_insights(run_id: str):
     """RAG-driven category, suggested checks (quoted from runbooks) and novelty flag. Loads the model on first call."""
     global search_pipeline
     found = [r for r in runs_data if str(r.run_id) == str(run_id)]
@@ -276,12 +296,21 @@ def report_insights(run_id: str):
         return {"status": "no_error_text", "category": None, "checks": [], "novelty": None,
                 "note": "No error text was recorded, so nothing was searched."}
     if search_pipeline is None:
-        search_pipeline = _build_search_pipeline(docs, runs_data)
+        loop = asyncio.get_event_loop()
+        search_pipeline = await loop.run_in_executor(
+            _thread_pool, _build_search_pipeline, docs, runs_data
+        )
     if search_pipeline is None:
         return {**unavailable, "note": "Retrieval pipeline could not be built (embedding model or documents missing)."}
     try:
-        out = build_insights(search_pipeline, docs, run.run_id, rep["failure"]["reason"],
-                             same_error_before=rep["history"]["same_error_before"])
+        loop = asyncio.get_event_loop()
+        out = await loop.run_in_executor(
+            _thread_pool,
+            lambda: build_insights(
+                search_pipeline, docs, run.run_id, rep["failure"]["reason"],
+                same_error_before=rep["history"]["same_error_before"]
+            )
+        )
         out["resolutions"] = find_similar_resolutions(search_pipeline, docs, run.run_id, rep["failure"]["reason"])
         return out
     except Exception as exc:
