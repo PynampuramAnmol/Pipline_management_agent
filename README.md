@@ -34,6 +34,10 @@ Without a live snapshot the app shows mock sample data. "Refresh from Databricks
 - `GET /api/report/{run_id}/references`: custom-RAG reference documents for the run's error text (similar past docs, not a diagnosis)
 - `GET /api/report/{run_id}/insights`: RAG-driven category, suggested checks (quoted from runbooks) and novelty flag
 - `POST /api/runs/refresh` pulls live runs
+- `GET /api/sample-data/presets`: returns built-in incident simulation presets
+- `GET /api/sample-data/preset/{preset_id}`: returns specific preset runs
+- `POST /api/sample-data/process`: runs 5-stage ingestion, metrics, clustering, RAG match, and scorecard synthesis
+- `POST /api/sample-data/apply`: promotes processed sample runs to active dashboard telemetry
 - `POST /api/chat`, `GET /api/incident-report/{run_id}`: optional LLM paths (need local Ollama)
 
 ## Tests and evaluation
@@ -62,6 +66,26 @@ the env vars. Documents get a category with an optional `category:` header line.
 - The diagnostic documents are mock samples, not written about your real runs.
 - The chat/LLM path is unverified generation. Treat its output as hypotheses.
 
+## Sample Data Upload & Multi-Stage Processing Pipeline
+
+Upload custom telemetry or simulate real-world failure scenarios with 1-click presets to inspect the entire multi-stage data processing lifecycle in real-time.
+
+### Processing Stages:
+1. **Ingestion & Schema Validation**: Parses JSON, verifies Databricks `RunRecord` schemas, deduplicates keys `(job_id, run_id)`, and logs malformed/dropped entries.
+2. **Telemetry Aggregation & Metrics**: Computes success rates, total/average/P95 durations, job distributions, and task hierarchies.
+3. **Error Clustering & Anomaly Detection**: Groups repeated error messages into semantic categories (`Schema Mismatch`, `Cluster Resource & OOM`, `Timeouts`, `Permissions`) and detects incident spikes.
+4. **Diagnostic Knowledge & RAG Matching**: Cross-references failure signatures against runbooks in `data/diagnostic_documents/` and resolution history, computing match confidence scores and suggested checklist items.
+5. **Final Output & Synthesis**: Produces a Composite Health Scorecard (0–100, `OPTIMAL` / `DEGRADED` / `CRITICAL`), executive summary, and actionable remediation guide.
+
+### 1-Click Incident Simulation Presets:
+- **Standard Baseline Operations**: Normal multi-pipeline execution across orders ingest and daily aggregations.
+- **Cascading Schema Incident**: `AnalysisException` caused by column rename (`order_total` -> `order_amount`) cascading into downstream analytics marts.
+- **Cluster Memory & Executor OOM**: Spark executors killed by YARN for exceeding memory limits and JVM heap space exhaustion.
+- **Dirty Ingestion Batch**: Evaluates validation and deduplication by intentionally including duplicate runs and malformed schemas.
+
+### Telemetry Staging:
+Click **"Apply This Dataset to Live Dashboard Telemetry"** from the final output panel to immediately promote the processed sample batch into the live dashboard, synchronizing all KPI cards, charts, pipelines table, and incident reports.
+
 ## Resolution memory (RAG learning)
 
 On any incident, write how it was fixed and click **Mark resolved**. The note is saved as a document in `data/resolutions/` (git-ignored), embedded, and indexed. When a similar failure happens later, the Insights card shows "Similar failures marked resolved before" with the note.
@@ -71,15 +95,10 @@ On any incident, write how it was fixed and click **Mark resolved**. The note is
 - Cutoff: `RAG_RESOLUTION_MIN_SCORE` (default 0.60). Lower it if differently worded errors do not match.
 - Resolution docs omit `claim` and `run_id` on purpose, so they never conflict with run status.
 
-## Dashboard update: incidents, recovery, RAG panel
+## Dashboard Features: Incidents, Recovery, RAG Panel & Pipeline Visualizer
+- **Sample Data Pipeline Visualizer**: Interactive stepper showing stage progress, status badges, milliseconds elapsed, and line-by-line audit logs.
 - **Open incidents / Time to recover** tiles (`/api/stats` -> `incidents`). Incident = a streak of bad runs of one job. Open = the job's latest run is still bad. Time to recover = first bad run's start to the next success's start.
 - **RAG knowledge base** card (`GET /api/rag/status`): documents, chunks, saved fixes, failed runs with a fix on record.
 - **Report summary strip**: Status (Open / Resolved / Recovered), Category, times seen, fix on record, and the fix note on top.
 - **Job timeline** and a "Recovered after ..." line in Job history (`history.timeline`, `history.recovered_by`).
-- **RAG fixes**: a run's own saved note no longer appears as a "similar document" or feeds the novelty score. Suggested checks come only from runbooks of the detected category (`checks_note` explains an empty list). New runbook `TS-004` for missing tables.
-
-## Dashboard update (RAG-centred)
-- **Self-match removed:** a run's own saved note no longer appears under similar documents or affects novelty.
-- **Checks match the category:** suggested checks come only from runbooks of the detected category (`checks_note` explains when none exist). New runbook `TS-004` covers missing tables.
-- **Incident status:** `/api/stats` has `incidents` (open, recovered, average time to recover). Reports show a summary strip (status, category, seen N times, fix on record), a recovery line and a job timeline.
-- **RAG knowledge card:** `GET /api/rag/status` shows documents, chunks, saved fixes, model, and how many failed runs have a fix on record.
+- **RAG fixes**: a run's own saved note no longer appears as a "similar document" or feeds the novelty score. Suggested checks come only from runbooks of the detected category (`checks_note` explains an empty list).
