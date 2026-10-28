@@ -1,0 +1,191 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 680" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06080d"/>
+      <stop offset="50%" stop-color="#0c121e"/>
+      <stop offset="100%" stop-color="#06080d"/>
+    </linearGradient>
+    <linearGradient id="cyan-glow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38d6f5" stop-opacity="0.8"/>
+      <stop offset="50%" stop-color="#34d399" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.8"/>
+    </linearGradient>
+    <linearGradient id="card-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#161f30" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#0f1624" stop-opacity="0.9"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <style>
+    .title { font-family: 'Space Grotesk', -apple-system, sans-serif; font-weight: 700; fill: #f8fafc; font-size: 26px; }
+    .subtitle { font-family: -apple-system, sans-serif; fill: #94a3b8; font-size: 14px; }
+    .card-title { font-family: 'Space Grotesk', -apple-system, sans-serif; font-weight: 600; fill: #e2e8f0; font-size: 14px; }
+    .card-desc { font-family: -apple-system, sans-serif; fill: #94a3b8; font-size: 11px; }
+    .mono { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+    .badge-text { font-family: -apple-system, sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+  </style>
+
+  <!-- Background Canvas -->
+  <rect width="1200" height="680" rx="16" fill="url(#bg-grad)" stroke="#1e293b" stroke-width="2"/>
+  <rect x="0" y="0" width="1200" height="3" fill="url(#cyan-glow)"/>
+
+  <!-- Top Navigation & Header -->
+  <g transform="translate(40, 36)">
+    <!-- Brand Icon -->
+    <rect width="36" height="36" rx="10" fill="#38d6f5" fill-opacity="0.15" stroke="#38d6f5" stroke-width="1.5"/>
+    <path d="M8 18h5l3-9 5 18 3-9h5" fill="none" stroke="#38d6f5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <text x="50" y="20" class="title">PipelinePulse AI — Multi-Stage Telemetry & RAG Engine</text>
+    <text x="50" y="38" class="subtitle">Sample Data Ingestion, Automated Validation, Anomaly Clustering & Diagnostic Runbook Synthesis</text>
+  </g>
+
+  <!-- Input Sources Row -->
+  <g transform="translate(40, 110)">
+    <!-- Channel 1: Presets -->
+    <rect width="350" height="74" rx="12" fill="url(#card-grad)" stroke="#334155" stroke-width="1.2"/>
+    <circle cx="28" cy="37" r="16" fill="#38d6f5" fill-opacity="0.15"/>
+    <text x="28" y="42" text-anchor="middle" fill="#38d6f5" font-family="sans-serif" font-size="14" font-weight="bold">⚡</text>
+    <text x="56" y="30" class="card-title">1-Click Simulation Presets</text>
+    <text x="56" y="48" class="card-desc">Baseline • Schema Drift • Cluster OOM • Dirty Batch</text>
+    <rect x="250" y="16" width="86" height="20" rx="6" fill="#38d6f5" fill-opacity="0.12" stroke="#38d6f5" stroke-width="0.8"/>
+    <text x="293" y="30" text-anchor="middle" fill="#38d6f5" class="badge-text">4 Presets</text>
+
+    <!-- Channel 2: File Upload -->
+    <rect x="385" y="0" width="350" height="74" rx="12" fill="url(#card-grad)" stroke="#334155" stroke-width="1.2"/>
+    <circle cx="413" cy="37" r="16" fill="#34d399" fill-opacity="0.15"/>
+    <text x="413" y="42" text-anchor="middle" fill="#34d399" font-family="sans-serif" font-size="14" font-weight="bold">📂</text>
+    <text x="441" y="30" class="card-title">JSON File Drag &amp; Drop</text>
+    <text x="441" y="48" class="card-desc">Accepts custom Databricks JSON telemetry exports</text>
+    <rect x="635" y="16" width="86" height="20" rx="6" fill="#34d399" fill-opacity="0.12" stroke="#34d399" stroke-width="0.8"/>
+    <text x="678" y="30" text-anchor="middle" fill="#34d399" class="badge-text">File Picker</text>
+
+    <!-- Channel 3: JSON Paste -->
+    <rect x="770" y="0" width="350" height="74" rx="12" fill="url(#card-grad)" stroke="#334155" stroke-width="1.2"/>
+    <circle cx="798" cy="37" r="16" fill="#818cf8" fill-opacity="0.15"/>
+    <text x="798" y="42" text-anchor="middle" fill="#818cf8" font-family="sans-serif" font-size="14" font-weight="bold">📋</text>
+    <text x="826" y="30" class="card-title">Direct JSON Code Paste</text>
+    <text x="826" y="48" class="card-desc">In-memory syntax parsing with schema linter</text>
+    <rect x="1020" y="16" width="86" height="20" rx="6" fill="#818cf8" fill-opacity="0.12" stroke="#818cf8" stroke-width="0.8"/>
+    <text x="1063" y="30" text-anchor="middle" fill="#818cf8" class="badge-text">Interactive</text>
+  </g>
+
+  <!-- Flow Connector Down -->
+  <line x1="600" y1="190" x2="600" y2="216" stroke="#38d6f5" stroke-width="2" stroke-dasharray="4 4"/>
+  <polygon points="595,214 600,222 605,214" fill="#38d6f5"/>
+
+  <!-- 5 Horizontal Processing Stages Grid -->
+  <g transform="translate(40, 226)">
+    <!-- Stage 1 -->
+    <rect width="210" height="180" rx="12" fill="url(#card-grad)" stroke="#059669" stroke-width="1.5"/>
+    <rect x="14" y="14" width="28" height="28" rx="8" fill="#34d399" fill-opacity="0.15"/>
+    <text x="28" y="33" text-anchor="middle" fill="#34d399" font-size="14">✓</text>
+    <rect x="106" y="18" width="90" height="20" rx="6" fill="#34d399" fill-opacity="0.12" stroke="#34d399" stroke-width="0.8"/>
+    <text x="151" y="32" text-anchor="middle" fill="#34d399" class="badge-text">COMPLETED</text>
+    <text x="14" y="68" class="card-title">1. Ingestion &amp; Validation</text>
+    <text x="14" y="86" class="card-desc">Schema verification &amp; deduplication</text>
+    <line x1="14" y1="104" x2="196" y2="104" stroke="#334155" stroke-width="0.8"/>
+    <text x="14" y="124" fill="#38d6f5" class="mono">Execution: 8.4ms</text>
+    <text x="14" y="144" fill="#94a3b8" class="mono">• 15 valid records</text>
+    <text x="14" y="162" fill="#94a3b8" class="mono">• 2 dropped duplicates</text>
+
+    <!-- Arrow 1 to 2 -->
+    <path d="M216 316 L230 316" stroke="#38d6f5" stroke-width="2"/>
+
+    <!-- Stage 2 -->
+    <rect x="228" y="0" width="210" height="180" rx="12" fill="url(#card-grad)" stroke="#059669" stroke-width="1.5"/>
+    <rect x="242" y="14" width="28" height="28" rx="8" fill="#34d399" fill-opacity="0.15"/>
+    <text x="256" y="33" text-anchor="middle" fill="#34d399" font-size="14">📊</text>
+    <rect x="334" y="18" width="90" height="20" rx="6" fill="#34d399" fill-opacity="0.12" stroke="#34d399" stroke-width="0.8"/>
+    <text x="379" y="32" text-anchor="middle" fill="#34d399" class="badge-text">COMPLETED</text>
+    <text x="242" y="68" class="card-title">2. Telemetry Aggregation</text>
+    <text x="242" y="86" class="card-desc">KPIs, durations &amp; percentiles</text>
+    <line x1="242" y1="104" x2="424" y2="104" stroke="#334155" stroke-width="0.8"/>
+    <text x="242" y="124" fill="#38d6f5" class="mono">Execution: 6.2ms</text>
+    <text x="242" y="144" fill="#34d399" class="mono">• Success Rate: 80.0%</text>
+    <text x="242" y="162" fill="#94a3b8" class="mono">• P95 Duration: 18m 20s</text>
+
+    <!-- Stage 3 -->
+    <rect x="456" y="0" width="210" height="180" rx="12" fill="url(#card-grad)" stroke="#d97706" stroke-width="1.5"/>
+    <rect x="470" y="14" width="28" height="28" rx="8" fill="#fbbf24" fill-opacity="0.15"/>
+    <text x="484" y="33" text-anchor="middle" fill="#fbbf24" font-size="14">⚠️</text>
+    <rect x="562" y="18" width="90" height="20" rx="6" fill="#fbbf24" fill-opacity="0.12" stroke="#fbbf24" stroke-width="0.8"/>
+    <text x="607" y="32" text-anchor="middle" fill="#fbbf24" class="badge-text">WARNING</text>
+    <text x="470" y="68" class="card-title">3. Error Clustering</text>
+    <text x="470" y="86" class="card-desc">Root-cause signature grouping</text>
+    <line x1="470" y1="104" x2="652" y2="104" stroke="#334155" stroke-width="0.8"/>
+    <text x="470" y="124" fill="#38d6f5" class="mono">Execution: 12.1ms</text>
+    <text x="470" y="144" fill="#fbbf24" class="mono">• 2 error clusters</text>
+    <text x="470" y="162" fill="#fb7185" class="mono">• Anomaly spike detected</text>
+
+    <!-- Stage 4 -->
+    <rect x="684" y="0" width="210" height="180" rx="12" fill="url(#card-grad)" stroke="#059669" stroke-width="1.5"/>
+    <rect x="698" y="14" width="28" height="28" rx="8" fill="#38d6f5" fill-opacity="0.15"/>
+    <text x="712" y="33" text-anchor="middle" fill="#38d6f5" font-size="14">🧠</text>
+    <rect x="790" y="18" width="90" height="20" rx="6" fill="#34d399" fill-opacity="0.12" stroke="#34d399" stroke-width="0.8"/>
+    <text x="835" y="32" text-anchor="middle" fill="#34d399" class="badge-text">COMPLETED</text>
+    <text x="698" y="68" class="card-title">4. Diagnostic RAG Match</text>
+    <text x="698" y="86" class="card-desc">Runbook cross-referencing</text>
+    <line x1="698" y1="104" x2="880" y2="104" stroke="#334155" stroke-width="0.8"/>
+    <text x="698" y="124" fill="#38d6f5" class="mono">Execution: 15.3ms</text>
+    <text x="698" y="144" fill="#34d399" class="mono">• ts_001_schema_mismatch</text>
+    <text x="698" y="162" fill="#94a3b8" class="mono">• Confidence: 94%</text>
+
+    <!-- Stage 5 -->
+    <rect x="912" y="0" width="210" height="180" rx="12" fill="url(#card-grad)" stroke="#0284c7" stroke-width="1.5"/>
+    <rect x="926" y="14" width="28" height="28" rx="8" fill="#38d6f5" fill-opacity="0.15"/>
+    <text x="940" y="33" text-anchor="middle" fill="#38d6f5" font-size="14">🎯</text>
+    <rect x="1018" y="18" width="90" height="20" rx="6" fill="#38d6f5" fill-opacity="0.12" stroke="#38d6f5" stroke-width="0.8"/>
+    <text x="1063" y="32" text-anchor="middle" fill="#38d6f5" class="badge-text">SYNTHESIS</text>
+    <text x="926" y="68" class="card-title">5. Final Output &amp; Health</text>
+    <text x="926" y="86" class="card-desc">Scorecard &amp; remediation</text>
+    <line x1="926" y1="104" x2="1108" y2="104" stroke="#334155" stroke-width="0.8"/>
+    <text x="926" y="124" fill="#38d6f5" class="mono">Execution: 4.8ms</text>
+    <text x="926" y="144" fill="#fbbf24" class="mono">• Health: 78/100 DEGRADED</text>
+    <text x="926" y="162" fill="#34d399" class="mono">• Remediation generated</text>
+  </g>
+
+  <!-- Final Output & Telemetry Staging Banner -->
+  <g transform="translate(40, 432)">
+    <rect width="1120" height="200" rx="14" fill="#090e17" stroke="#1e293b" stroke-width="1.5"/>
+    
+    <!-- Health Ring Gauge -->
+    <circle cx="80" cy="80" r="46" fill="#fbbf24" fill-opacity="0.12" stroke="#fbbf24" stroke-width="4"/>
+    <text x="80" y="78" text-anchor="middle" fill="#f8fafc" class="title" font-size="24">78</text>
+    <text x="80" y="96" text-anchor="middle" fill="#fbbf24" class="badge-text">DEGRADED</text>
+
+    <!-- Synthesis Summary Content -->
+    <text x="150" y="52" class="card-title" font-size="17">Multi-Stage Pipeline Processing &amp; Health Scorecard</text>
+    <text x="150" y="76" class="card-desc" font-size="13">Processed 15 runs across 4 Databricks jobs. 3 failure incidents detected with clustered root cause: AnalysisException (Column Rename).</text>
+    <text x="150" y="98" fill="#34d399" class="mono" font-size="12">✓ Matched Runbook ts_001_schema_mismatch.txt: Check source DDL for order_total → order_amount rename.</text>
+
+    <!-- Metrics Bar -->
+    <g transform="translate(150, 118)">
+      <rect width="130" height="42" rx="8" fill="#131b2a" stroke="#334155" stroke-width="0.8"/>
+      <text x="12" y="18" fill="#94a3b8" font-size="10" font-family="sans-serif">TOTAL RUNS</text>
+      <text x="12" y="34" fill="#f8fafc" class="mono" font-size="14" font-weight="bold">15</text>
+
+      <rect x="145" y="0" width="130" height="42" rx="8" fill="#131b2a" stroke="#334155" stroke-width="0.8"/>
+      <text x="157" y="18" fill="#94a3b8" font-size="10" font-family="sans-serif">SUCCESS RATE</text>
+      <text x="157" y="34" fill="#34d399" class="mono" font-size="14" font-weight="bold">80.0%</text>
+
+      <rect x="290" y="0" width="130" height="42" rx="8" fill="#131b2a" stroke="#334155" stroke-width="0.8"/>
+      <text x="302" y="18" fill="#94a3b8" font-size="10" font-family="sans-serif">AVG RUNTIME</text>
+      <text x="302" y="34" fill="#38d6f5" class="mono" font-size="14" font-weight="bold">6m 12s</text>
+
+      <rect x="435" y="0" width="130" height="42" rx="8" fill="#131b2a" stroke="#334155" stroke-width="0.8"/>
+      <text x="447" y="18" fill="#94a3b8" font-size="10" font-family="sans-serif">P95 LATENCY</text>
+      <text x="447" y="34" fill="#e2e8f0" class="mono" font-size="14" font-weight="bold">18m 20s</text>
+    </g>
+
+    <!-- Glowing Staging CTA Button -->
+    <g transform="translate(760, 116)">
+      <rect width="330" height="46" rx="10" fill="url(#cyan-glow)" filter="url(#glow)"/>
+      <rect width="330" height="46" rx="10" fill="#047857"/>
+      <text x="165" y="28" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="13" font-weight="bold">🚀 Apply To Live Dashboard Telemetry</text>
+    </g>
+  </g>
+</svg>

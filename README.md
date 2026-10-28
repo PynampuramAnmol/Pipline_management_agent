@@ -4,6 +4,8 @@ Reads job runs from Databricks (read-only), shows pipeline statistics on a dashb
 incident report for every failed run. The report comes only from recorded run data. No model is on
 the report path, so nothing in it is guessed.
 
+![Pipeline Monitor Dashboard Overview](docs/images/dashboard_overview.png)
+
 ## Architecture
 | Layer | What | Where |
 |---|---|---|
@@ -69,6 +71,8 @@ the env vars. Documents get a category with an optional `category:` header line.
 ## Sample Data Upload & Multi-Stage Processing Pipeline
 
 Upload custom telemetry or simulate real-world failure scenarios with 1-click presets to inspect the entire multi-stage data processing lifecycle in real-time.
+
+![Sample Data Processing Pipeline Workflow](docs/images/sample_pipeline_workflow.svg)
 
 ### Processing Stages:
 1. **Ingestion & Schema Validation**: Parses JSON, verifies Databricks `RunRecord` schemas, deduplicates keys `(job_id, run_id)`, and logs malformed/dropped entries.
