@@ -78,3 +78,25 @@ export function resolveRun(runId, body) {
 export function unresolveRun(runId) {
   return request(`/api/report/${encodeURIComponent(runId)}/resolution`, { method: 'DELETE' })
 }
+
+export function getSamplePresets() {
+  return request('/api/sample-data/presets')
+}
+
+export function getSamplePresetDetail(presetId) {
+  return request(`/api/sample-data/preset/${encodeURIComponent(presetId)}`)
+}
+
+export function processSampleData(payload) {
+  return request('/api/sample-data/process', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export function applySampleData() {
+  return request('/api/sample-data/apply', {
+    method: 'POST',
+  })
+}

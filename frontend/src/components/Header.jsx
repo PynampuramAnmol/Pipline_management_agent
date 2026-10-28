@@ -54,6 +54,16 @@ function BrandMark() {
   )
 }
 
+function UploadIcon() {
+  return (
+    <svg className="btn-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
+    </svg>
+  )
+}
+
 export default function Header({
   source,
   lastRefreshed,
@@ -62,6 +72,8 @@ export default function Header({
   onRefresh,
   theme,
   onToggleTheme,
+  showSamplePipeline,
+  onToggleSamplePipeline,
 }) {
   const sourceLabel = source ? String(source).toLowerCase() : null
   const live = sourceLabel === 'live'
@@ -103,6 +115,16 @@ export default function Header({
         </div>
         <div className="header-actions">
           <div className="header-buttons">
+            <button
+              type="button"
+              className={`btn ${showSamplePipeline ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={onToggleSamplePipeline}
+              aria-expanded={showSamplePipeline}
+              title="Upload sample data & visualize processing stages"
+            >
+              <UploadIcon />
+              <span>{showSamplePipeline ? 'Hide Sample Pipeline' : 'Upload Sample Data'}</span>
+            </button>
             <button
               type="button"
               className="btn btn-icon-only"

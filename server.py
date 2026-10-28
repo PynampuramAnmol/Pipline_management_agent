@@ -67,8 +67,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from src.monitoring.sample_pipeline import PRESETS_CATALOG, execute_sample_pipeline
+
 # Global in-memory system instances
 runs_data: list[RunRecord] = []
+last_processed_runs: list[RunRecord] = []
 docs: list[Document] = []
 search_pipeline: Optional[RetrievalPipeline] = None
 llm_client = None
@@ -464,11 +467,72 @@ def handle_chat(req: ChatRequest):
             except Exception:
                 pass
 
-        return {
-            "route": "error",
-            "reply": f"Unable to process question: {exc}",
-            "evidence": [],
+# 5. Sample Data Upload, Processing Stages & Telemetry Staging
+class ProcessSampleRequest(BaseModel):
+    data: Optional[Any] = None
+    preset_id: Optional[str] = None
+    apply_immediately: Optional[bool] = False
+
+
+@app.get("/api/sample-data/presets")
+def get_sample_presets():
+    """Returns catalog of built-in sample datasets for instant 1-click testing."""
+    return [
+        {
+            "id": p["id"],
+            "title": p["title"],
+            "description": p["description"],
+            "badge": p["badge"],
+            "runs_count": len(p["runs"]),
         }
+        for p in PRESETS_CATALOG.values()
+    ]
+
+
+@app.get("/api/sample-data/preset/{preset_id}")
+def get_sample_preset_detail(preset_id: str):
+    if preset_id not in PRESETS_CATALOG:
+        raise HTTPException(status_code=404, detail=f"Preset '{preset_id}' not found.")
+    return PRESETS_CATALOG[preset_id]
+
+
+@app.post("/api/sample-data/process")
+def process_sample_data(req: ProcessSampleRequest):
+    """Executes the 5 distinct pipeline processing stages on uploaded sample data or selected preset."""
+    global last_processed_runs, runs_data, search_pipeline
+    raw_payload = req.data
+    if not raw_payload and req.preset_id:
+        if req.preset_id not in PRESETS_CATALOG:
+            raise HTTPException(status_code=404, detail=f"Preset '{req.preset_id}' not found.")
+        raw_payload = PRESETS_CATALOG[req.preset_id]["runs"]
+
+    if raw_payload is None:
+        raise HTTPException(status_code=400, detail="Must provide either 'data' (JSON runs array) or 'preset_id'")
+
+    res = execute_sample_pipeline(raw_payload, docs=docs, search_pipeline=search_pipeline)
+    if res.get("final_output") and "valid_run_objects" in res["final_output"]:
+        valid_objs = res["final_output"].pop("valid_run_objects")
+        last_processed_runs = valid_objs
+        if req.apply_immediately and valid_objs:
+            runs_data = list(valid_objs)
+            search_pipeline = None
+
+    return res
+
+
+@app.post("/api/sample-data/apply")
+def apply_sample_data():
+    """Promotes recently processed sample data to active dashboard telemetry."""
+    global runs_data, search_pipeline, last_processed_runs
+    if not last_processed_runs:
+        raise HTTPException(status_code=400, detail="No recently processed sample data found to apply. Please run processing first.")
+    runs_data = list(last_processed_runs)
+    search_pipeline = None
+    return {
+        "status": "applied",
+        "count": len(runs_data),
+        "source": runs_data[0].source if runs_data else "mock",
+    }
 
 
 if __name__ == "__main__":
