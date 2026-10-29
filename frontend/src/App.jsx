@@ -10,12 +10,13 @@ import PipelinesTable from './components/PipelinesTable.jsx'
 import RunsList from './components/RunsList.jsx'
 import IncidentReport from './components/IncidentReport.jsx'
 import SampleDataPipeline from './components/SampleDataPipeline.jsx'
+import Demo from './components/Demo.jsx'
 
 function scrollBehavior() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
 }
 
-function Dashboard() {
+function Dashboard({ onDemo }) {
   const [lastRefreshed, setLastRefreshed] = useState(null)
   const markRefreshed = () => setLastRefreshed(new Date())
   const stats = useSWR('/api/stats', fetcher, { onSuccess: markRefreshed })
@@ -26,7 +27,7 @@ function Dashboard() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [jobFilter, setJobFilter] = useState(null)
   const [selectedRunId, setSelectedRunId] = useState(null)
-  const [showSamplePipeline, setShowSamplePipeline] = useState(false)
+  const [showSamplePipeline, setShowSamplePipeline] = useState(true)
 
   const [theme, setTheme] = useState('dark')
 
@@ -97,6 +98,7 @@ function Dashboard() {
 
   return (
     <div className="app">
+      <div className="workspace-demo-link"><button type="button" className="btn btn-ghost btn-sm" onClick={onDemo}>← Back to project demo</button></div>
       <Header
         source={source}
         lastRefreshed={lastRefreshed}
@@ -166,9 +168,22 @@ function Dashboard() {
 }
 
 export default function App() {
+  const [workspace, setWorkspace] = useState(() => window.location.hash === '#workspace')
+  useEffect(() => {
+    const update = () => setWorkspace(window.location.hash === '#workspace')
+    window.addEventListener('hashchange', update)
+    return () => window.removeEventListener('hashchange', update)
+  }, [])
+
+  function navigate(hash) {
+    window.location.hash = hash
+    setWorkspace(hash === 'workspace')
+    window.scrollTo(0, 0)
+  }
+
   return (
     <SWRConfig value={{ revalidateOnFocus: false, shouldRetryOnError: false }}>
-      <Dashboard />
+      {workspace ? <Dashboard onDemo={() => navigate('demo')} /> : <Demo onStart={() => navigate('workspace')} />}
     </SWRConfig>
   )
 }
